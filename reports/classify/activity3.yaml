@@ -1,0 +1,101 @@
+# Classifications for the `activity3` family (T21a core; T21b adds structure). Upstream pin
+# 97a5992; `cite` paths are relative to the upstream repository root. FR is 0 on every
+# corpus. The remaining FAs are in T21b's classes (swimlane strategy, group closing) or are
+# unknown colors (execution errors in HColorSet, no shared valid-color variable yet).
+cases:
+  # --- T21b scope: swimlane strategy ------------------------------------------------
+  # The first activity-like command sets SWIMLANE_FORBIDDEN; a later `|lane|` then fails
+  # ("This swimlane must be defined at the start of the diagram").
+  plantuml-ts:activity/nakavu-98-pela661.puml#0:
+    class: bug
+    note: "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:86-95
+  pdiff:dbhum/n_ak/nakavu-98-pela661.puml#0:
+    class: bug
+    note: "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:86-95
+  plantuml-ts:activity/velodu-59-sada437.puml#0:
+    class: bug
+    note: "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:86-95
+  pdiff:dbhum/v_el/velodu-59-sada437.puml#0:
+    class: bug
+    note: "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:86-95
+  pdiff:input/tmp1.puml#1:
+    class: bug
+    note: "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:86-95
+  # --- T21b scope: group closing ----------------------------------------------------
+  # `}` while a fork (not a group) is the innermost instruction: closeGroup fails.
+  plantuml-ts:activity/veducu-71-tika634.puml#0:
+    class: bug
+    note: "`}` inside an open fork: closeGroup needs a group innermost (T21b's CommandCloseGroup3)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:429-435
+  pdiff:dbhum/v_ed/veducu-71-tika634.puml#0:
+    class: bug
+    note: "`}` inside an open fork: closeGroup needs a group innermost (T21b's CommandCloseGroup3)"
+    cite: src/main/java/net/sourceforge/plantuml/activitydiagram3/ActivityDiagram3.java:429-435
+  # --- unknown colors ---------------------------------------------------------------
+  plantuml-ts:class/duluve-89-mati167.puml#0:
+    class: semantic
+    note: "unknown arrow color `-[#toto]->`: NoSuchColorException at execution (gap/arrow-unknown-color)"
+    cite: src/main/java/net/sourceforge/plantuml/klimt/color/HColorSet.java:69-73
+  pdiff:dbhum/d_ul/duluve-89-mati167.puml#0:
+    class: semantic
+    note: "unknown arrow color `-[#toto]->`: NoSuchColorException at execution (gap/arrow-unknown-color)"
+    cite: src/main/java/net/sourceforge/plantuml/klimt/color/HColorSet.java:69-73
+  plantuml-ts:class/leseku-63-ruda113.puml#0:
+    class: semantic
+    note: "unknown stereotype color `<<#zzblue>>`: NoSuchColorException at execution (gap/activity-unknown-color)"
+    cite: src/main/java/net/sourceforge/plantuml/klimt/color/HColorSet.java:69-73
+  pdiff:dbhum/l_es/leseku-63-ruda113.puml#0:
+    class: semantic
+    note: "unknown stereotype color `<<#zzblue>>`: NoSuchColorException at execution (gap/activity-unknown-color)"
+    cite: src/main/java/net/sourceforge/plantuml/klimt/color/HColorSet.java:69-73
+  # --- Lark (plantuml-ts --lark sample --sample 100) ---------------------------------
+  # With the current emitter, if/else and switch/case blocks disagree: Lark nests a `set`
+  # target block like a `push`, so a second `endif`/`endswitch` would be needed. Fixed by
+  # the queued emitter change (reports/queued-shared-changes.md, "activity3: Lark/W3C
+  # treat `set` like `push`"); with it these agree.
+  plantuml-ts:activity/ciceto-21-zanu057.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:activity/demibe-40-moda439.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:activity/mukigo-10-dixi626.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:activity/rekuxa-78-lidi292.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:activity/zaloze-31-jibo311.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:activity/zucile-04-duga040.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:class/gekasa-78-jevi903.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  plantuml-ts:class/godixi-01-fizo921.puml#0:
+    class: bug
+    note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
+  # Pre-existing (same with the generated model alone):
+  plantuml-ts:activity/juleki-83-xusi470.puml#0:
+    class: bug
+    note: "Lark only: a 14-line `if (` header (DecoratorMultine join); Lark approximates join as one line (tools/emit/lark.py docstring)"
+  plantuml-ts:activity/kavoro-11-jife299.puml#0:
+    class: bug
+    note: "Lark only: indented `end note` closing a multiline note; the emitted end part allows no leading blank (queued: 'activity3: Lark multiline `end` line cannot be indented')"
+  plantuml-ts:class/tuvigo-52-redo102.puml#0:
+    class: bug
+    note: "Lark only: indented `end note` closing a multiline note (queued emitter fix)"
+  plantuml-ts:class/finadu-74-duvi890.puml#0:
+    class: bug
+    note: "Lark timeout only: `<style>` block, the known style/common Lark cost (.agent-notes/fix-emit-top.md)"
+  plantuml-ts:class/pojanu-14-koka953.puml#0:
+    class: bug
+    note: "Lark timeout only: one 2.4 kB base64 image line; also times out with the generated model alone"
+exclusions: {}

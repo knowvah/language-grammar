@@ -336,3 +336,227 @@ Proposed fix in tools/emit/lark.py terminal rendering: rewrite `\s` to `[^\S\r\n
 the existing `tail()` lookahead already assumes line-bounded terminals.
 - sequence / emit only top models → done (fix-emit-top, next commit).
 - sequence / Lark terminals across line ends → done (fix-emit-top, next commit).
+
+## activity3: Lark/W3C treat `set` like `push`, so if/else needs two `endif` lines
+
+`activity3` (T21a) uses `set` for the first time in a diagram model. `else` (CommandElse3,
+DecoratorMultine(Else3), ElseLegacy1) does `set: a3_if_else`, and `case` does
+`set: a3_switch_case`. The interpreter replaces the frame. The Lark and W3C emitters nest
+the target block inside the current one (`set` is "treated exactly like `push`",
+tools/emit/lark.py:30-33). The pushed `a3_if_then_block` then still needs its own pop line
+after the `endif` that closed `a3_if_else_block`. So every if/else and every switch with
+a case is rejected by Lark, while the jar accepts it.
+
+Measured on a 100-block plantuml-ts activity3 sample (`--lark sample --sample 100`) with
+the scratch grammar:
+* current emitter: 11 disagreements, 2 timeouts;
+* with the diff below: 3 disagreements, 1 timeout. The baseline grammar without activity3
+  has the same 3 disagreements and 2 timeouts, so activity3 adds none.
+
+Failing cases: tests/fixtures/activity3/pos/if-else.puml, switch-cases.puml;
+plantuml-ts activity/ciceto-21-zanu057, demibe-40-moda439, mukigo-10-dixi626,
+rekuxa-78-lidi292, zaloze-31-jibo311, zucile-04-duga040; class/gekasa-78-jevi903,
+godixi-01-fizo921.
+
+Fix: inside a pushed context, a `set` entry ends the block like `pop` and continues
+with the target's block (`<ctx>_pop_line: ... | else _NL <target>_block`). In `main`
+nothing changes (no frame to replace). The same diff applies to tools/emit/w3c.py
+(`_context`/`_lines` have the same shape there).
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _context(self, ctx: str) -> None:
+-        line = self._lines(rule, entries, pop=False)
+-        pop_line = self._lines(f"{rule}_pop", entries, pop=True)
++        line = self._lines(rule, entries, pop=False, pushed=True)
++        pop_line = self._lines(f"{rule}_pop", entries, pop=True, pushed=True)
+@@
+-    def _lines(self, base: str, entries: list[Entry], pop: bool) -> str:
++    def _lines(self, base: str, entries: list[Entry], pop: bool, pushed: bool = False) -> str:
+-        chosen = [e for e in entries if bool(e.get("pop")) == pop and not skipped(e)]
++        chosen = [e for e in entries if ends_block(e, pushed) == pop and not skipped(e)]
+@@ (module level)
++def ends_block(entry: Entry, pushed: bool) -> bool:
++    """Whether ``entry`` closes the current block: ``pop``, or ``set`` inside a pushed
++    context (the frame is replaced, so the block ends and the target's block follows)."""
++    return bool(entry.get("pop")) or (pushed and bool(entry.get("set")))
+```
+Also update the docstring bullet (lark.py:30-33): "`set` inside a pushed context ends the
+block and continues with the target's block; in `main` it is treated like `push`."
+TextMate still nests regions for `set` (highlighting only). document.yaml's `set`
+entries are in a layer the emitters do not emit.
+
+## activity3: Lark multiline `end` line cannot be indented
+
+`_entry_expr` renders `multiline` + `end` as
+`{expr} _NL (_BODY_LINE? _NL)* {end}`, with no `_WS?` around the end part. An indented
+closing line therefore never matches, for example `  end note` of an indented
+CommandNoteLong3 (`_lines` wraps first lines in `_WS? ... _WS?`, but not end lines).
+This disagreement predates activity3: plantuml-ts activity/kavoro-11-jife299 and
+class/tuvigo-52-redo102 are rejected by Lark and accepted by the jar and the interpreter.
+Verified in a scratch copy: both parse with the diff below.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _entry_expr(self, entry: Entry) -> str:
+-            return f"{expr} _NL (_BODY_LINE? _NL)* {self.tail(entry['end'])}"
++            return f"{expr} _NL (_BODY_LINE? _NL)* _WS? {self.tail(entry['end'])} _WS?"
+```
+The analogous W3C line (`tail = [Node("NL"), Node("(BODY_LINE? NL)*"), self.part(...)]`)
+has the same gap.
+
+## state: Lark requires the pop line of a context entered without `require_pop`
+
+`state` (T20) pushes `state_body` for `state X {` / `frame X {` without `require_pop`,
+because upstream accepts a block that ends inside an open composite (no final check;
+statediagram/command/CommandEndState.java, net/atmp/CucaDiagram.java:161-166). The Lark
+emitter renders every pushed context as `(line? _NL)* <pop line>`, so the closing line
+is mandatory and such blocks are rejected. Failing cases (Lark rejects, jar and
+interpreter accept): plantuml-ts state/suzope-95-suvu383.puml, state/gizati-67-kora187.puml;
+tests/fixtures/state/pos/composite-unclosed.puml. Verified with a monkeypatched emitter
+in a scratch build: both corpus blocks parse.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _context(self, ctx: str) -> None:
+         line = self._lines(rule, entries, pop=False)
+         pop_line = self._lines(f"{rule}_pop", entries, pop=True)
+-        tail = pop_line if pop_line else f"{line}?"
++        if not pop_line:
++            tail = f"{line}?"
++        elif self._pop_required(ctx):
++            tail = pop_line
++        else:  # upstream accepts a block that ends inside this context
++            tail = f"({pop_line} | {line}?)"
+         self.rules.append(f"{rule}: ({line}? _NL)* {tail}")
++
++    def _pop_required(self, ctx: str) -> bool:
++        """Whether an entry pushing ``ctx`` carries ``require_pop``."""
++        return any(
++            e.get("push") == ctx and e.get("require_pop")
++            for es in self.model.contexts.values()
++            for e in es
++        )
+```
+Approximation: Earley may then also close such a context before the block end (a
+superset); the closer neg fixtures of tests/fixtures/state (brace-at-root,
+endstate-at-root, extra-close-after-region, *-closes-root-region) still fail in Lark with
+the patch, because no `main`/`main_concurrent` rule accepts a closer. The W3C emitter has the same shape. The sequence family (unclosed
+`alt`/`box`) benefits too.
+
+## state: Lark multiline `end` line cannot be indented (second failing case)
+
+Same cause and diff as "activity3: Lark multiline `end` line cannot be indented" above.
+Additional failing case: plantuml-ts class/tumaba-64-tosu281.puml (STATE: `    end note`
+closing `note right on link` inside a composite; CommandFactoryNoteOnLink_1's generated
+end `^end[\s ]?note$` has no leading whitespace, while the interpreter compares the
+trimmed line). Before T20 the first note's body ran on to a later unindented `end note`,
+which masked it; with `state_body` as a pushed context it no longer can. Verified: parses
+with that diff (or with the optional-pop diff above).
+
+## state: Lark terminal alternation where a later alternative extends an earlier one
+
+CommandLinkState / CommandLinkStateReverse ENT1/ENT2 (statediagram/command/
+CommandLinkStateCommon.java:74-77) is `([%pLN_.:]+|[%pLN_.:]+\[H\*?\]|\[\*\]|...)`. Lark's
+dynamic lexer takes the first alternative that matches (`Stopwatch`) and
+`dynamic_complete` only retries shorter prefixes, so `Stopwatch[H]` is never produced
+when more text follows (`Timer --> Stopwatch[H] : left`). `prefer_longest`
+(tools/emit/lark.py:149-158) only reorders groups of plain words. Failing case: plantuml-ts
+class/mefici-97-tudu030.puml (also rejected by the pre-T20 grammar) and
+tests/fixtures/state/pos/history.puml (`A[H] --> B`, `B[H*] --> A`). Proposed: extend
+`prefer_longest` so that, in any alternation group, an alternative whose text starts with
+the full text of an earlier alternative is moved before it (`A|A\[H\*?\]` ->
+`A\[H\*?\]|A`); the match set is unchanged under backtracking. Verified by applying exactly
+that swap to the 4 occurrences in a scratch plantuml.lark: the block and both lines parse.
+
+## description: Lark rejects trailing whitespace after a multiline or pushing first line
+
+`tools/emit/lark.py` `_entry_expr` writes bracket, `multiline` + `end` and `push`/`set`
+entries as `<first line> _NL ...` with no `_WS?` before `_NL`, while one-line commands get
+`_WS? <command> _WS?` and the interpreter matches trimmed lines. A first line with
+trailing blanks therefore fails in Lark only: `title ` / `x` / `end title`, `<style> ` /
+`x { y: z }` / `</style>`, and every group opener that the families turned into a push
+(`rectangle r { ` / `[a]` / `}`, `together { `). The jar and the interpreter accept all
+of them.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _entry_expr(self, entry: Entry) -> str:
+         expr = self.tail(entry["parts"])
+         if entry["kind"] == KIND_BRACKET:
+-            return f"{expr} _NL (_BODY_LINE? _NL)* _BRACKET_CLOSE"
++            return f"{expr} _WS? _NL (_BODY_LINE? _NL)* _BRACKET_CLOSE"
+         if entry["kind"] == KIND_MULTILINE and "end" in entry:
+-            return f"{expr} _NL (_BODY_LINE? _NL)* {self.tail(entry['end'])}"
++            return f"{expr} _WS? _NL (_BODY_LINE? _NL)* {self.tail(entry['end'])}"
+         target = entry.get("push") or entry.get("set")
+         if target:
+-            return f"{expr} _NL {self._context_rule(target)}"
++            return f"{expr} _WS? _NL {self._context_rule(target)}"
+```
+Checked on a scratch copy of `tools/` with the T19 model tree: the 9 probes above all
+parse after the change (3 failed before). Failing corpus cases: plantuml-ts
+`class/refabu-21-jesu466.puml` (`title ` + `end title`, hidden before T19 because the
+bare word `title` also parsed as a description element), `sequence/xozabi-42-pixa842.puml`
+(`<style> `), and any group opener with trailing blanks (1 file under plantuml-ts
+`component/` + `usecase/`).
+
+## activity3: test_document pins gen-activity-diagram3 as the top model (blocking the full suite)
+
+`activity3` (T21a) is the hand-written family model for ActivityDiagramFactory3 and
+replaces `gen-activity-diagram3` in dispatch (guide, "Diagram dispatch"). That is the same
+contract `class` and `sequence` follow. tests/layers/test_document.py:161 still asserts
+the generated id, so `test_every_mapped_factory_has_one_top_model` fails once
+model/diagrams/activity3.yaml is present.
+```diff
+--- a/tests/layers/test_document.py
++++ b/tests/layers/test_document.py
+@@ def test_every_mapped_factory_has_one_top_model(
+     assert tops["ActivityDiagramFactory"] == "gen-activity-diagram"
+-    assert tops["ActivityDiagramFactory3"] == "gen-activity-diagram3"
++    assert tops["ActivityDiagramFactory3"] == "activity3"
+     assert tops["PSystemDitaaFactory"] == "embedded-ditaa"
+```
+
+## timing: Lark set/push into a context without pop as the last line
+
+`timing` (T23) switches to `timing_player` with `set` on CommandRobustConcise and
+CommandAtPlayer. The Lark emitter renders a transition as `<parts> _NL <ctx>_block` and a
+context without a pop line as `(line? _NL)* line?`; `<diagram>_body` then needs its own
+`_NL` after the command. When the transition line is the last body line the context is
+empty and two newlines are needed before `@enduml`, so Lark rejects. Failing cases (Lark
+rejects, jar and interpreter accept): pdiff dbhum/b_up/bupubi-65-kigi561.puml,
+dbhum/z_ip/zipuri-87-dofu527.puml, dbhum/z_up/zupuse-88-mira023.puml;
+tests/fixtures/timing/pos/player-switch-as-last-line.puml. Any other pop-less `set`
+target has the same shape (class `class_orphan`/`main_mixing`, description
+`desc_orphan`, `CommandNewpage: {set: main}` as a last line). Verified with a
+monkeypatched emitter in a scratch build: pdiff timing `--lark all` 3 -> 0
+disagreements, vega and plantuml-ts timing slices stay at 0.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _entry_expr(self, entry: Entry) -> str:
+         target = entry.get("push") or entry.get("set")
+         if target:
++            if not self._has_pop(target):  # the context ends with the block
++                return f"{expr} {self._context_rule(target)}"
+             return f"{expr} _NL {self._context_rule(target)}"
+         return expr
+@@ def _context(self, ctx: str) -> None:
+         line = self._lines(rule, entries, pop=False)
+         pop_line = self._lines(f"{rule}_pop", entries, pop=True)
+-        tail = pop_line if pop_line else f"{line}?"
+-        self.rules.append(f"{rule}: ({line}? _NL)* {tail}")
++        if pop_line:
++            self.rules.append(f"{rule}: ({line}? _NL)* {pop_line}")
++        else:  # each line brings its newline; the body's own `_NL` ends the last one
++            self.rules.append(f"{rule}: (_NL {line}?)*")
++
++    def _has_pop(self, ctx: str) -> bool:
++        return any(e.get("pop") and not skipped(e) for e in self.model.contexts[ctx])
+```
+Interaction with the queued `state` entry (optional pop line): the same last-line
+problem applies to `state X {` as the last body line; the analogous form there is
+`<parts> <ctx>` with `<ctx>: (_NL line?)* (_NL pop_line)?`. The queued `description`
+entry adds `_WS?` before that `_NL`; keep it on the `_NL` branch only.
+- activity3 / test_document top-model assertion → orchestrator made it id-agnostic (T21a commit).

@@ -157,9 +157,11 @@ def test_every_mapped_factory_has_one_top_model(
     tops = top_models(models)
     mapped = {name for names in document.start_map.values() for name in names}
     assert mapped - set(tops) <= PENDING_MODELS
-    assert tops["ActivityDiagramFactory"] == "gen-activity-diagram"
-    assert tops["ActivityDiagramFactory3"] == "gen-activity-diagram3"
-    assert tops["PSystemDitaaFactory"] == "embedded-ditaa"
+    # Family models replace generated/embedded ones over time, so assert the invariant
+    # (each factory's top model declares that factory; the two activity factories stay
+    # distinct) rather than pinning ids.
+    assert all(models[mid].factory == factory for factory, mid in tops.items())
+    assert tops["ActivityDiagramFactory"] != tops["ActivityDiagramFactory3"]
 
 
 def opaque_factories() -> list[str]:
