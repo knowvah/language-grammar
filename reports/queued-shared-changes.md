@@ -334,3 +334,5 @@ with `sequence` in place (grammar filtered to top models, see above):
 Proposed fix in tools/emit/lark.py terminal rendering: rewrite `\s` to `[^\S\r\n]`, and add
 `\r\n` to every negated class (`[^#]` -> `[^#\r\n]`), so no terminal crosses a line end;
 the existing `tail()` lookahead already assumes line-bounded terminals.
+- sequence / emit only top models → done (fix-emit-top, next commit).
+- sequence / Lark terminals across line ends → done (fix-emit-top, next commit).

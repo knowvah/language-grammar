@@ -38,9 +38,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from tools.emit.lark import DIAGRAM_LAYER, MAIN_CONTEXT, start_keyword
+from tools.emit.lark import MAIN_CONTEXT, start_keyword
 from tools.emit.skip import skipped
 from tools.emit.textmate_regex import Captures, flatten, flatten_alternatives
+from tools.emit.tops import emitted_diagrams
 from tools.model import Entry, ModelLoadError, ResolvedModel, ResolvedModels
 from tools.model.load import load_dir
 from tools.model.resolve import resolve
@@ -179,9 +180,8 @@ def _block(keyword: str) -> Rule:
 
 def _by_keyword(resolved: ResolvedModels) -> dict[str, list[ResolvedModel]]:
     groups: dict[str, list[ResolvedModel]] = {}
-    for _, model in sorted(resolved.items()):
-        if model.layer == DIAGRAM_LAYER and model.diagram:
-            groups.setdefault(start_keyword(model.diagram), []).append(model)
+    for model in emitted_diagrams(resolved):
+        groups.setdefault(start_keyword(str(model.diagram)), []).append(model)
     return groups
 
 

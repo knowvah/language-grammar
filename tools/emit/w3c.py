@@ -33,7 +33,6 @@ from __future__ import annotations
 from collections import Counter
 
 from tools.emit.lark import (
-    DIAGRAM_LAYER,
     KIND_BRACKET,
     KIND_MULTILINE,
     MAIN_CONTEXT,
@@ -43,6 +42,7 @@ from tools.emit.lark import (
     start_keyword,
 )
 from tools.emit.skip import skipped
+from tools.emit.tops import emitted_diagrams
 from tools.emit.w3c_regex import translate_regex
 from tools.emit.w3c_text import (
     BRACKET_CLOSE,
@@ -184,9 +184,7 @@ def emit_w3c_with_lossiness(resolved: ResolvedModels) -> tuple[str, list[Lossy]]
     sink = Sink(names)
     rules: list[str] = []
     groups: dict[str, list[str]] = {}
-    for _, model in sorted(resolved.items()):
-        if model.layer != DIAGRAM_LAYER or not model.diagram:
-            continue
+    for model in emitted_diagrams(resolved):
         diagram = _Diagram(model, names, sink)
         rules.extend(diagram.render())
         groups.setdefault(start_keyword(str(model.diagram)), []).append(diagram.body)

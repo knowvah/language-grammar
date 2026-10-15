@@ -10,7 +10,8 @@ Output shape (line based, whitespace significant; newlines are never ``%ignore``
     class_command: class_command_a | class_command_b
     class_command_a: <parts>               # one rule per command: <diagram>_<command>
 
-Only ``layer: diagram`` models contribute (document and preproc layers are future work);
+Only ``layer: diagram`` models contribute, and of those only the top model of each
+``factory`` (``tools.emit.tops``; document and preproc layers are future work);
 rules and terminals are emitted in model-id / context / entry order, so output is
 deterministic. UML sub-types all sit under ``@startuml``; other diagram types use
 ``@start<lowercase diagram>`` (see ``start_keyword``).
@@ -52,9 +53,10 @@ first-match and stateful), so interpreter/Lark disagreements are expected:
 * Regexes: the lexer is Lark's ``dynamic`` Earley lexer with ``regex=True`` (the
   third-party ``regex`` module), because expanded patterns contain ``\\p{L}``-style
   classes that ``re`` rejects. Terminals match greedily at one position (no
-  backtracking into shorter matches), and a regex such as ``\\s`` can cross a line
-  break. Leading ``^`` and trailing ``$`` anchors are dropped (lines are delimited by
-  ``_NL``). Dynamic Earley rejects terminals whose static minimum width is zero, so a
+  backtracking into shorter matches), so every pattern goes through
+  ``tools.emit.linebound.line_bounded`` and cannot cross a line end. Leading ``^`` and
+  trailing ``$`` anchors are dropped (lines are delimited by ``_NL``). Dynamic Earley
+  rejects terminals whose static minimum width is zero, so a
   nullable regex is emitted as ``(/(?V0)(?=[\\s\\S])(?:PATTERN)/)?``: ``(?V0)`` makes
   Lark fall back to ``regex.match('')`` for the width check, the lookahead makes that
   check report non-empty, and the rule-level ``?`` restores nullability.
@@ -68,10 +70,11 @@ from dataclasses import dataclass, field
 
 from lark.utils import get_regexp_width
 
+from tools.emit.linebound import line_bounded
 from tools.emit.skip import skipped
+from tools.emit.tops import emitted_diagrams
 from tools.model import Entry, Part, ResolvedModel, ResolvedModels
 
-DIAGRAM_LAYER = "diagram"
 MAIN_CONTEXT = "main"
 EMPTY_CONTEXT = "empty"
 UML_KEYWORD = "uml"
@@ -172,8 +175,10 @@ def greedy(pattern: str) -> str:
             escaped = True
         elif in_class:
             in_class = char != "]"
+            after_quantifier = False
         elif char == "[":
             in_class = True
+            after_quantifier = False
         elif char == "?" and after_quantifier:
             after_quantifier = False
             continue
@@ -205,7 +210,7 @@ def regex_terminal(pattern: str, ci: bool = False, eol: bool = False) -> tuple[s
     """Lark ``/.../`` literal for ``pattern`` (flag ``i`` when ``ci``) and whether it
     needed the nullable guard. With ``eol`` the match must end at the line end (the
     stripped ``$``), so lazy and greedy quantifiers both reach it."""
-    pattern = greedy(prefer_longest(_strip_anchors(pattern)))
+    pattern = greedy(prefer_longest(line_bounded(_strip_anchors(pattern))))
     nullable = get_regexp_width(pattern)[0] == 0
     if eol:
         pattern = f"(?:{pattern}){EOL_LOOKAHEAD}"
@@ -448,11 +453,7 @@ def _blocks(groups: dict[str, list[str]]) -> tuple[list[str], list[str]]:
 def emit_lark(resolved: ResolvedModels) -> str:
     """Render the Lark grammar text for the diagram-layer models in ``resolved``."""
     names = _Names()
-    diagrams = [
-        _Diagram(m, names)
-        for _, m in sorted(resolved.items())
-        if m.layer == DIAGRAM_LAYER and m.diagram
-    ]
+    diagrams = [_Diagram(m, names) for m in emitted_diagrams(resolved)]
     rules: list[str] = []
     terminals: list[str] = []
     groups: dict[str, list[str]] = {}

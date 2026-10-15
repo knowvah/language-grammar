@@ -84,7 +84,7 @@ def test_lark_string_ci_and_escapes() -> None:
         ("a/b", "/a\\/b/", False),
         ("a\\/b", "/a\\/b/", False),
         ("a\nb", "/a\\nb/", False),
-        ("\\s*", "/(?V0)(?=[\\s\\S])(?:\\s*)/", True),
+        ("\\s*", "/(?V0)(?=[\\s\\S])(?:[^\\S\\r\\n]*)/", True),
     ],
 )
 def test_regex_terminal(pattern: str, literal: str, nullable: bool) -> None:
@@ -98,7 +98,7 @@ def test_emit_is_deterministic(grammar_text: str) -> None:
 def test_emit_structure(grammar_text: str) -> None:
     lines = grammar_text.splitlines()
     assert "block: block_uml | block_salt" in lines
-    assert 'class_command_create_class: ("class"i /\\s+/ CLASS_IDENT)' in lines
+    assert 'class_command_create_class: ("class"i /[^\\S\\r\\n]+/ CLASS_IDENT)' in lines
     ident = "CLASS_IDENT: /(?:[\\p{L}_][\\p{L}\\p{N}_]*)" + emitter.EOL_LOOKAHEAD + "/"
     assert ident in lines
     assert "CLASS_IDENT_2: /[\\p{L}_][\\p{L}\\p{N}_]*/" in lines
@@ -251,7 +251,7 @@ def test_repeat_of_atom_is_inline_but_compound_body_is_hoisted() -> None:
 def test_nullable_regex_is_hoisted_optional() -> None:
     diagram, ref = _diagram({"regex": "\\s*"})
     assert ref == "_o"
-    assert diagram.rules == ["_o: /(?V0)(?=[\\s\\S])(?:\\s*)/ |"]
+    assert diagram.rules == ["_o: /(?V0)(?=[\\s\\S])(?:[^\\S\\r\\n]*)/ |"]
 
 
 def test_many_optional_parts_compile_without_product_blowup() -> None:
