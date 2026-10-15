@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,9 @@ TOY = FIXTURES / "toy"
 EMPTY = FIXTURES / "empty"
 AMBIGUOUS = FIXTURES / "ambiguous.lark"
 SHORT_TIMEOUT_S = 0.1
+OPTIONAL_PARTS = 30
+TOY_BUILD_BUDGET_S = 2.0
+REAL_BUILD_BUDGET_S = 30.0
 OK = "ok"
 REJECT = "reject"
 CLASS_SRC = "@startuml\n{body}\n@enduml\n"
@@ -114,6 +118,66 @@ def test_named_terminal_reused_and_disambiguated() -> None:
     again = diagram.part({"regex": "a+", "name": "n"})
     other = diagram.part({"regex": "b+", "name": "n"})
     assert (first, again, other) == ("CLASS_N", "CLASS_N", "CLASS_N_2")
+
+
+def _diagram(part: dict) -> tuple[emitter._Diagram, str]:
+    diagram = emitter._Diagram(resolve(load_dir(TOY))["toy_class"], emitter._Names())
+    return diagram, diagram.part(part)
+
+
+def test_opt_is_hoisted_into_empty_alternative_rule() -> None:
+    diagram, ref = _diagram({"opt": {"literal": "x"}})
+    assert ref == "_o"
+    assert diagram.rules == ['_o: "x" |']
+
+
+def test_alt_hoisted_and_identical_bodies_deduplicated() -> None:
+    diagram, ref = _diagram(
+        {
+            "seq": [
+                {"alt": [{"literal": "a"}, {"literal": "b"}]},
+                {"alt": [{"literal": "a"}, {"literal": "b"}]},
+                {"alt": [{"literal": "a"}, {"literal": "c"}]},
+            ]
+        }
+    )
+    assert ref == "(_a _a _a_2)"
+    assert diagram.rules == ['_a: "a" | "b"', '_a_2: "a" | "c"']
+
+
+def test_repeat_of_atom_is_inline_but_compound_body_is_hoisted() -> None:
+    _, atom = _diagram({"star": {"literal": "x"}})
+    diagram, compound = _diagram({"plus": {"seq": [{"literal": "x"}, {"literal": "y"}]}})
+    assert atom == '"x"*'
+    assert compound == "_g+"
+    assert diagram.rules == ['_g: ("x" "y")']
+
+
+def test_nullable_regex_is_hoisted_optional() -> None:
+    diagram, ref = _diagram({"regex": "\\s*"})
+    assert ref == "_o"
+    assert diagram.rules == ["_o: /(?V0)(?=[\\s\\S])(?:\\s*)/ |"]
+
+
+def test_many_optional_parts_compile_without_product_blowup() -> None:
+    parts = [{"opt": {"literal": f"w{i}"}} for i in range(OPTIONAL_PARTS)]
+    diagram = emitter._Diagram(resolve(load_dir(TOY))["toy_class"], emitter._Names())
+    expr = diagram.part({"seq": parts})
+    text = "\n".join(["start: r", f"r: {expr}", *diagram.rules]) + "\n"
+    started = time.perf_counter()
+    parser = Lark(text, parser="earley", lexer="dynamic", regex=True)
+    assert time.perf_counter() - started < TOY_BUILD_BUDGET_S
+    assert parser.parse("w0w7").data == "start"
+
+
+@pytest.mark.corpus
+def test_real_model_grammar_builds_under_budget(tmp_path: Path) -> None:
+    assert build_cli.main(["--only", "lark", "--out-dir", str(tmp_path)]) == 0
+    text = (tmp_path / "plantuml.lark").read_text(encoding="utf-8")
+    started = time.perf_counter()
+    parser = Lark(text, parser="earley", lexer="dynamic", regex=True)
+    assert time.perf_counter() - started < REAL_BUILD_BUDGET_S
+    assert parser.parse("@startuml\nclass A\n@enduml").data == "start"
 
 
 # --- acceptance: grammar behaviour ------------------------------------------------------
