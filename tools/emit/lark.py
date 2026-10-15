@@ -35,7 +35,11 @@ first-match and stateful), so interpreter/Lark disagreements are expected:
   end line. A body line may itself match the end part, so ordered "stop at first end" is
   lost.
 * ``multiline`` with ``join`` -- approximated as a single line: only ``parts`` is matched
-  against one line (upstream joins up to ``max_lines`` + 1 lines with U+E100).
+  against one line (upstream joins up to ``max_lines`` + 1 lines with U+E100). A join
+  entry whose ``parts`` require U+E100 on every path (``tools.emit.skip.needs_joiner``,
+  e.g. a mandatory ``\\ue100`` in a ``seq``) can never match one line and is skipped.
+* ``reject: true`` entries only make the interpreter fail an attempt; they have no
+  accepted text and are dropped (no alternative is emitted).
 * ``multiline-bracket`` -- approximated as start line, arbitrary body lines, then a line
   ``\\s*\\}`` (the ``_BRACKET_CLOSE`` terminal). Bracket depth is not modelled, so nested
   ``{ ... }`` bodies close at the first ``}`` line.
@@ -64,6 +68,7 @@ from dataclasses import dataclass, field
 
 from lark.utils import get_regexp_width
 
+from tools.emit.skip import skipped
 from tools.model import Entry, Part, ResolvedModel, ResolvedModels
 
 DIAGRAM_LAYER = "diagram"
@@ -285,7 +290,7 @@ class _Diagram:
 
     def _lines(self, base: str, entries: list[Entry], pop: bool) -> str:
         """Define ``<base>_line`` for the entries with/without ``pop``; '' when none."""
-        chosen = [e for e in entries if bool(e.get("pop")) == pop]
+        chosen = [e for e in entries if bool(e.get("pop")) == pop and not skipped(e)]
         name = self.names.unique(f"{base}_line")
         commands = [self._entry(e) for e in chosen]
         if not commands:

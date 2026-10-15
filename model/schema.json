@@ -88,7 +88,9 @@
         "pop": {"oneOf": [{"type": "null"}, {"const": true}]},
         "set": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/context_name"}]},
         "end": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/part"}]},
-        "join": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/join"}]}
+        "join": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/join"}]},
+        "require_pop": {"oneOf": [{"type": "null"}, {"const": true}]},
+        "reject": {"oneOf": [{"type": "null"}, {"const": true}]}
       },
       "if": {"required": ["remove"]},
       "then": {"maxProperties": 1}
@@ -152,7 +154,11 @@
         "class": {"type": "string"},
         "file": {"type": "string"},
         "line": {"type": "integer", "minimum": 1},
-        "engine": {"enum": ["IRegex", "UBrex"]}
+        "engine": {"enum": ["IRegex", "UBrex"]},
+        "also": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^src/main/java/.+\\.java:\\d+(-\\d+)?$"}
+        }
       }
     },
     "entry": {
@@ -178,12 +184,26 @@
         "set": {"$ref": "#/$defs/context_name"},
         "end": {"$ref": "#/$defs/part"},
         "join": {"$ref": "#/$defs/join"},
+        "require_pop": {"const": true},
+        "reject": {"const": true},
         "refined_by": {"$ref": "#/$defs/model_id"}
       },
       "allOf": [
         {"not": {"required": ["push", "pop"]}},
         {"not": {"required": ["push", "set"]}},
         {"not": {"required": ["pop", "set"]}},
+        {"if": {"required": ["require_pop"]}, "then": {"required": ["push"]}},
+        {
+          "if": {"required": ["reject"]},
+          "then": {
+            "properties": {"kind": {"const": "single"}},
+            "allOf": [
+              {"not": {"required": ["push"]}},
+              {"not": {"required": ["set"]}},
+              {"not": {"required": ["pop"]}}
+            ]
+          }
+        },
         {
           "if": {"properties": {"kind": {"enum": ["single", "opaque", "multiline-bracket"]}},
                  "required": ["kind"]},

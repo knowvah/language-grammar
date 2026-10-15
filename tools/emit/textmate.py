@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.emit.lark import DIAGRAM_LAYER, MAIN_CONTEXT, start_keyword
+from tools.emit.skip import skipped
 from tools.emit.textmate_regex import Captures, flatten, flatten_alternatives
 from tools.model import Entry, ModelLoadError, ResolvedModel, ResolvedModels
 from tools.model.load import load_dir
@@ -103,7 +104,7 @@ class _Rules:
         """Rules for ``entries``; ``skip_pop`` leaves ``pop`` entries to the ``end``."""
         rules = []
         for entry in entries:
-            if "command" not in entry or (skip_pop and entry.get("pop")):
+            if "command" not in entry or skipped(entry) or (skip_pop and entry.get("pop")):
                 continue
             rules.append(self.entry_rule(entry))
         return rules
@@ -135,7 +136,7 @@ class _Rules:
         return LINE_END, {}
 
     def _pop_end(self, context: str) -> tuple[str, Captures]:
-        pops = [e["parts"] for e in self.model.contexts[context] if e.get("pop")]
+        pops = [e["parts"] for e in self.model.contexts[context] if e.get("pop") and not skipped(e)]
         return flatten_alternatives(pops) if pops else (LINE_END, {})
 
     def _push(self, context: str) -> str:

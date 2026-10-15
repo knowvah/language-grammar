@@ -16,7 +16,9 @@ Conventions (repeated in the generated header):
   ``<rule>_lossy ::= <approximation> /* regex: <original> */`` and one ``Lossy`` entry.
 * A regex Part with ``ci: true`` is case-folded with the same convention (each cased
   letter and class range gains its other case); absent ``ci`` is case-sensitive.
-* ``multiline`` with ``join`` is approximated as a single line (only ``parts``);
+* ``multiline`` with ``join`` is approximated as a single line (only ``parts``), and
+  skipped when ``parts`` require U+E100 on every path (``tools.emit.skip.needs_joiner``: no
+  single line contains it); ``reject: true`` entries are dropped;
   ``multiline-bracket`` as a body closed by a line ``WS* "}"`` (bracket depth is not
   modelled).
 * Structure mirrors the Lark emitter: ``push``/``set`` become nested context rules, ordered
@@ -40,6 +42,7 @@ from tools.emit.lark import (
     snake,
     start_keyword,
 )
+from tools.emit.skip import skipped
 from tools.emit.w3c_regex import translate_regex
 from tools.emit.w3c_text import (
     BRACKET_CLOSE,
@@ -92,7 +95,7 @@ class _Diagram:
         self._add(f"{rule} ::= ({line}? NL)* {pop_line or line + '?'}")
 
     def _lines(self, base: str, entries: list[Entry], pop: bool) -> str:
-        chosen = [e for e in entries if bool(e.get("pop")) == pop]
+        chosen = [e for e in entries if bool(e.get("pop")) == pop and not skipped(e)]
         name = self.names.unique(f"{base}_line")
         if not chosen:
             if not pop:

@@ -19,7 +19,7 @@ contexts:
         seq:
           - {literal: wrap, ci: true}
           - {regex: "\\s+\\w+"}
-          - {opt: {regex: "\\ue100\\w+"}}
+          - {opt: {regex: "\ue100\\w+"}}
       join: {max_lines: 2}
     - command: CommandBracket
       provenance: {class: toy.CommandBracket}

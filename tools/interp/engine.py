@@ -17,7 +17,7 @@ Upstream semantics mirrored (all at 97a5992):
   the current line. ``OK`` consumes one line; ``OK_PARTIAL`` consumes lines until the
   command's end condition (see ``tools.interp.scan``); a multiline command that never
   completes is skipped and the next command is tried. No command matches: syntax error
-  at that line (``:193-201``).
+  at that line (``:169-175``).
 * Blank lines: upstream relies on ``CommandNope`` (``command/CommandNope.java:46-58``,
   registered by ``CommonCommands.java:63``). Here a blank line is skipped only when no
   command of the current context matched it, so models that include ``CommandNope``
@@ -26,6 +26,21 @@ Upstream semantics mirrored (all at 97a5992):
 * Contexts: sublime-syntax stack semantics (``docs/grammar-guide.md``). Only the context
   on top of the stack is searched; ``push`` / ``pop`` / ``set`` apply after the command
   completes. ``pop`` on the bottom ``main`` context is a no-op.
+* ``reject: true``: the entry, once selected (first match in context order), fails the
+  attempt at that line, mirroring ``CommandExecutionResult.error`` -> ``EXECUTION_ERROR``
+  (``PSystemCommandFactory.java:180-187``): the command's regex matched, so no later
+  command is tried. Inside the raw-mode preproc filter (no failure channel) a ``reject``
+  entry just consumes its line.
+* ``require_pop: true`` (with ``push``): a body that is still open when the block ends
+  means the command never completed. Upstream skips such a command and tries the *next*
+  command for the start line (``getCandidate``, ``PSystemCommandFactory.java:236-241``:
+  ``isMultilineCommandOk`` returns ``null`` -> ``continue``); the start line fails only if
+  none of those matches (``:169-175``). The interpreter therefore backtracks to the
+  outermost still-open ``require_pop`` push (an outer multiline scan swallows the inner
+  lines upstream, so the inner command never starts), restores the stack as it was
+  before the push, and resumes at the *pushing line* with the rules after the pushing
+  rule. When none matches the attempt fails at the pushing line. Frames closed by
+  ``pop`` before the block ends are final, as are failures on lines inside a body.
 * ``kind: opaque``: after its ``parts`` match the line, the rest of the block (up to
   ``@end``) is swallowed as an unparsed body and accepted.
 
@@ -64,6 +79,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 
 import regex
 
@@ -80,6 +96,7 @@ EMPTY_CONTEXT = "empty"
 PREPROC_LAYER = "preproc"
 DEFAULT_TIMEOUT_S = 10.0
 MODEL_ERRORS = (regex.error, KeyError, PartError)
+_Step = tuple[Rule, int, int]
 
 
 def _verdict(
@@ -110,6 +127,24 @@ def _apply(stack: list[str], rule: Rule) -> None:
         stack[-1] = rule.target
     elif rule.action == ACTION_POP and len(stack) > 1:
         stack.pop()
+
+
+@dataclass(frozen=True)
+class _Resume:
+    """Backtracking point of a ``require_pop`` push: its line, prior stack, next rule."""
+
+    index: int
+    stack: tuple[str, ...]
+    next_rule: int
+
+
+def _track(frames: list[_Resume | None], stack: list[str], step: _Step, i: int) -> None:
+    """Mirror push/pop in ``frames`` (one slot per stack frame) before ``_apply``."""
+    rule = step[0]
+    if rule.action == ACTION_PUSH:
+        frames.append(_Resume(i, tuple(stack), step[2] + 1) if rule.require_pop else None)
+    elif rule.action == ACTION_POP and len(frames) > 1:
+        frames.pop()
 
 
 class Interpreter:
@@ -174,17 +209,27 @@ class Interpreter:
     ) -> int | None:
         """Body index of the first line no command accepts, or ``None`` if all pass."""
         stack = [context]
-        i = 0
-        while i < len(body):
-            step = self._candidate(model, stack[-1], body, i, deadline)
-            if step is not None:
-                _apply(stack, step[0])
-                i = step[1]
-            elif body[i].trimmed:
+        frames: list[_Resume | None] = [None]
+        i, first = 0, 0
+        while True:
+            if i >= len(body):
+                pending = next((f for f in frames if f is not None), None)
+                if pending is None:
+                    return None
+                stack, frames = list(pending.stack), [None]
+                i, first = pending.index, pending.next_rule
+            step = self._candidate(model, stack[-1], body, i, deadline, first)
+            first = 0
+            if step is None:
+                if body[i].trimmed:
+                    return i
+                i += 1
+            elif step[0].reject:
                 return i
             else:
-                i += 1
-        return None
+                _track(frames, stack, step, i)
+                _apply(stack, step[0])
+                i = step[1]
 
     def _preprocess(self, model: ResolvedModel, body: list[Line], deadline: Deadline) -> list[Line]:
         """Lines the preproc model does not consume, in order (raw mode)."""
@@ -202,13 +247,23 @@ class Interpreter:
         return kept
 
     def _candidate(
-        self, model: ResolvedModel, context: str, body: list[Line], i: int, deadline: Deadline
-    ) -> tuple[Rule, int] | None:
-        """``PSystemCommandFactory.getCandidate`` (:223-247)."""
-        for rule in self._book.rules(model, context):
-            nxt = rule.advance(body, i, deadline)
+        self,
+        model: ResolvedModel,
+        context: str,
+        body: list[Line],
+        i: int,
+        deadline: Deadline,
+        first: int = 0,
+    ) -> _Step | None:
+        """``PSystemCommandFactory.getCandidate`` (:223-247), from rule ``first`` on.
+
+        Returns ``(rule, next line index, rule index)``.
+        """
+        rules = self._book.rules(model, context)
+        for index in range(first, len(rules)):
+            nxt = rules[index].advance(body, i, deadline)
             if nxt is not None:
-                return rule, nxt
+                return rules[index], nxt, index
         return None
 
 

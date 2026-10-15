@@ -50,7 +50,7 @@ contexts:
 | `insert_before` / `insert_after` | top (`diagram`, `shared`) | Map key to a list of full entries inserted immediately before / after each matching entry. | none (added) |
 | `include: NAME` | entry | Splice another context in place (rules below). | `include` |
 | `command` | entry | Upstream `Command` simple class name; also the rule id. | none (added; a rule has no id) |
-| `provenance` | entry | Where the rule comes from: `class` (FQCN, required), `file`, `line` (pinned upstream sha), `engine` (`IRegex` or `UBrex`). | none (added) |
+| `provenance` | entry | Where the rule comes from: `class` (FQCN, required), `file`, `line` (pinned upstream sha), `engine` (`IRegex` or `UBrex`), `also` (see below). | none (added) |
 | `kind` | entry | `single`, `multiline`, `multiline-bracket` or `opaque` (see "Multiline kinds"). | none (added) |
 | `parts` | entry | The Part matched by the command's first line. | `match` |
 | `end` | entry | Part closing a `multiline` command. Forbidden for every other kind. | `escape` / pop-rule `match` (closest) |
@@ -58,6 +58,9 @@ contexts:
 | `push` | entry | Context to enter after matching. | `push` |
 | `pop: true` | entry | Leave the current context. | `pop` |
 | `set` | entry | Replace the current context by the named one. | `set` |
+| `provenance.also: [str]` | entry | Optional extra `path:line` (or `path:first-last`) citations at the pin, each matching `^src/main/java/.+\.java:\d+(-\d+)?$`. The loader checks the pattern only; a corpus test checks that every citation in `model/` resolves at 97a5992. | none (added) |
+| `require_pop: true` | entry | Only with `push` (also allowed in `overrides`): ending the block while the pushed frame is still open skips the command, so the interpreter backtracks to the pushing line (see "Unterminated bodies and rejected lines"). | none (added) |
+| `reject: true` | entry | `single` only, no `push`/`pop`/`set` (also allowed in `insert_before`/`insert_after` entries and `overrides`): when the entry is selected the attempt fails at that line (mirrors `CommandExecutionResult.error`). Emitters drop the entry. | none (added) |
 | `refined_by` | entry | Id of the model whose `overrides` changed this entry; set by the resolver, never hand-written. | none (added) |
 
 ### Multiline kinds
@@ -76,6 +79,34 @@ Every consumer (interpreter, emitters) must implement these exactly as written h
 Emitters that cannot express a completion rule exactly (Lark, W3C, TextMate) approximate
 it and document the approximation in their module docstring: `join` as a single line;
 bracket depth as a body closed by a line `\s*\}`.
+
+### Unterminated bodies and rejected lines (`require_pop`, `reject`)
+
+**`require_pop: true`.** Mirrors `PSystemCommandFactory.getCandidate`
+(`command/PSystemCommandFactory.java:223-247`, `isMultilineCommandOk` at `:268-286`): a
+multiline command whose end never arrives returns `null` and the factory does `continue`,
+trying the *next* command for the same start line; only when none matches does the start line
+fail (`:169-175`). A model that enters a body as a context (`push`) cannot say that the body
+must close, so `require_pop` marks the pushing entry. Interpreter semantics:
+
+* When the block ends while a `require_pop` frame is still on the stack, the interpreter
+  backtracks to the **outermost** still-open `require_pop` push (upstream's outer scan
+  swallows the inner lines, so an inner command never starts), restores the stack as it was
+  before that push, and resumes **at the pushing line with the rules after the pushing
+  rule** in the same context.
+* If no later rule matches the pushing line, the attempt fails at the pushing line.
+* Frames closed by `pop` before the block ends are final, and a body line no rule accepts
+  still fails at that line (no backtracking): only the end of the block triggers it.
+* Lark, W3C and TextMate already require the closing line of a pushed context; they ignore
+  the key.
+
+**`reject: true`.** Mirrors `CommandExecutionResult.error` -> `EXECUTION_ERROR`
+(`PSystemCommandFactory.java:180-187`): the command's regex matched, so the factory fails
+and no later command is tried. An entry with `reject` makes the attempt fail at its line
+when it is the first match in context order, so it must precede the entries it shadows
+(typically via `insert_before` the unnarrowed generated rule). Lark, W3C and TextMate drop
+`reject` entries and also skip `join` entries whose `parts` need U+E100 on every path
+(they can never match one line, see each emitter's docstring).
 
 ### Case sensitivity
 
@@ -107,6 +138,10 @@ Regex rules (checked by the loader):
 * Each regex compiles with the Python `regex` module (a superset of `re` in its default
   mode). `re` itself is not used because expanded `%pLN` contains `\p{L}\p{N}`.
   Oniguruma and PCRE compilation is checked by the emitter tasks.
+* A `\uXXXX` escape inside a regex is a load error: PCRE2 rejects `\u`. Write the
+  character itself (a YAML double-quoted `"\uE100"` is parsed to the literal character
+  before the loader sees it, so it is fine; a regex that still contains a backslash followed
+  by `u` after YAML parsing is not). `\\u` (escaped backslash, then `u`) is allowed.
 
 ### Include and ref semantics
 

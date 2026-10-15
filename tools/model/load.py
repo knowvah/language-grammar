@@ -31,6 +31,12 @@ from tools.model.resolve import LIST_KEYS, UNARY_KEYS, resolve
 MODEL_GLOB = "*.yaml"
 # Upstream Pattern2 macro table, regex/Pattern2.java:54-59 and TRANSFORM_PATTERN at :62.
 UPSTREAM_MACRO = re.compile(r"%(?:pLN|s|q|g)")
+# A `\uXXXX` escape: an odd number of backslashes before `u` (`\\u` is a literal backslash).
+UNICODE_ESCAPE = re.compile(r"(?<!\\)(?:\\\\)*\\u")
+UNICODE_ESCAPE_HINT = (
+    "\\u escape in regex: PCRE2 rejects it; write the character as a literal character "
+    '(a YAML double-quoted "\\uE100" already yields the literal)'
+)
 EXIT_OK = 0
 EXIT_ERRORS = 1
 
@@ -120,6 +126,8 @@ def check_pattern(pattern: str) -> str | None:
     macro = UPSTREAM_MACRO.search(pattern)
     if macro:
         return f"unexpanded upstream macro '{macro.group()}'"
+    if UNICODE_ESCAPE.search(pattern):
+        return UNICODE_ESCAPE_HINT
     try:
         regex.compile(pattern)
     except regex.error as exc:

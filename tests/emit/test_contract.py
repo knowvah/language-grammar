@@ -109,7 +109,7 @@ def test_textmate_regex_ci_wraps_and_absent_does_not(models: ResolvedModels) -> 
 def test_textmate_join_is_a_single_line_match(models: ResolvedModels) -> None:
     rule = _rules(models)[2]
     assert "begin" not in rule
-    assert rule["match"] == "(?i:wrap)\\s+\\w+(?:\\ue100\\w+)?"
+    assert rule["match"] == "(?i:wrap)\\s+\\w+(?:\ue100\\w+)?"
 
 
 def test_textmate_bracket_without_end_keeps_the_default_end(models: ResolvedModels) -> None:

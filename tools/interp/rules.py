@@ -31,6 +31,8 @@ class Rule:
     max_lines: int | None
     action: str
     target: str
+    require_pop: bool = False
+    reject: bool = False
 
     def advance(self, body: list[Line], i: int, deadline: Deadline) -> int | None:
         """Index after this command starting at ``i``; ``None`` = no match or dropped."""
@@ -58,7 +60,17 @@ def build_rule(entry: Entry) -> Rule:
     end = compile_part(entry["end"]) if "end" in entry else None
     max_lines = entry["join"]["max_lines"] if "join" in entry else None
     start = compile_part(entry["parts"])
-    return Rule(entry["command"], entry["kind"], start, end, max_lines, action, target)
+    return Rule(
+        entry["command"],
+        entry["kind"],
+        start,
+        end,
+        max_lines,
+        action,
+        target,
+        bool(entry.get("require_pop")),
+        bool(entry.get("reject")),
+    )
 
 
 class RuleBook:
