@@ -23,6 +23,7 @@ from tools.model import (
     ResolvedModel,
     ResolvedModels,
 )
+from tools.model.patch import apply_patches
 
 ARROW = " → "
 MAIN_CONTEXT = "main"
@@ -30,6 +31,7 @@ MODEL_CONTEXT_SEP = "#"
 LIST_KEYS = ("seq", "alt")
 UNARY_KEYS = ("opt", "star", "plus")
 TRANSITION_KEYS = ("push", "set")
+PART_KEYS = ("parts", "end")
 
 
 def resolve(models: dict[str, Model]) -> ResolvedModels:
@@ -117,6 +119,7 @@ class _Resolver:
             n: self._variable(self._owner(self.find_var(mid, n)), n, ()) for n in var_names
         }
         contexts = {n: self.expand_context(mid, n, ()) for n in ctx_names}
+        contexts = apply_patches(self, self._models, mid, contexts)
         return ResolvedModel(
             mid,
             model.layer,
@@ -195,14 +198,24 @@ class _Resolver:
             )
         return target, ctx
 
-    def expand_entry(self, mid: str, entry: Entry, pointer: str) -> Entry:
+    def expand_entry_parts(self, mid: str, entry: Entry, pointer: str) -> Entry:
+        """Copy of ``entry`` with its ``parts``/``end`` (when Parts) ref-expanded in ``mid``."""
         out = dict(entry)
-        out["parts"] = self.expand_part(entry["parts"], mid, f"{pointer}/parts", ())
-        if "end" in entry:
-            out["end"] = self.expand_part(entry["end"], mid, f"{pointer}/end", ())
-        for key in TRANSITION_KEYS:
-            if key in entry and not self.find_ctx(mid, entry[key]):
-                raise _error(
-                    self._models[mid], f"{pointer}/{key}", f"unknown context '{entry[key]}'"
-                )
+        for key in PART_KEYS:
+            if isinstance(entry.get(key), dict):
+                out[key] = self.expand_part(entry[key], mid, f"{pointer}/{key}", ())
+        return out
+
+    def missing_transition(self, mid: str, entry: Entry) -> str | None:
+        """The ``push``/``set`` key of ``entry`` naming a context invisible from ``mid``."""
+        return next(
+            (k for k in TRANSITION_KEYS if entry.get(k) and not self.find_ctx(mid, entry[k])),
+            None,
+        )
+
+    def expand_entry(self, mid: str, entry: Entry, pointer: str) -> Entry:
+        out = self.expand_entry_parts(mid, entry, pointer)
+        key = self.missing_transition(mid, entry)
+        if key:
+            raise _error(self._models[mid], f"{pointer}/{key}", f"unknown context '{entry[key]}'")
         return out

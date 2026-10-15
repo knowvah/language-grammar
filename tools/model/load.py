@@ -20,9 +20,14 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from tools.model import Model, ModelError, ModelLoadError, Part
+from tools.model.patch import (
+    INSERT_AFTER,
+    INSERT_BEFORE,
+    OVERRIDES,
+    SCHEMA_PATH,
+)
 from tools.model.resolve import LIST_KEYS, UNARY_KEYS, resolve
 
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "model" / "schema.json"
 MODEL_GLOB = "*.yaml"
 # Upstream Pattern2 macro table, regex/Pattern2.java:54-59 and TRANSFORM_PATTERN at :62.
 UPSTREAM_MACRO = re.compile(r"%(?:pLN|s|q|g)")
@@ -86,15 +91,24 @@ def iter_regexes(part: Part, pointer: str) -> Iterator[tuple[str, str]]:
             yield from iter_regexes(part[key], f"{pointer}/{key}")
 
 
+def _entry_parts(entry: dict[str, Any], base: str) -> Iterator[tuple[str, Part]]:
+    for key in ("parts", "end"):
+        if isinstance(entry.get(key), dict):
+            yield f"{base}/{key}", entry[key]
+
+
 def _model_parts(doc: dict[str, Any]) -> Iterator[tuple[str, Part]]:
     for name, part in doc.get("variables", {}).items():
         yield f"/variables/{name}", part
     for cname, entries in doc.get("contexts", {}).items():
         for index, entry in enumerate(entries):
-            base = f"/contexts/{cname}/{index}"
-            for key in ("parts", "end"):
-                if key in entry:
-                    yield f"{base}/{key}", entry[key]
+            yield from _entry_parts(entry, f"/contexts/{cname}/{index}")
+    for key, patch in doc.get(OVERRIDES, {}).items():
+        yield from _entry_parts(patch, f"/{OVERRIDES}/{key}")
+    for section in (INSERT_BEFORE, INSERT_AFTER):
+        for key, entries in doc.get(section, {}).items():
+            for index, entry in enumerate(entries):
+                yield from _entry_parts(entry, f"/{section}/{key}/{index}")
 
 
 def check_pattern(pattern: str) -> str | None:
@@ -147,6 +161,9 @@ def _to_model(doc: dict[str, Any], path: Path) -> Model:
         contexts=doc.get("contexts", {}),
         factory=doc.get("factory"),
         start_map={k: list(v) for k, v in doc.get("start_map", {}).items()},
+        overrides=doc.get(OVERRIDES, {}),
+        insert_before=doc.get(INSERT_BEFORE, {}),
+        insert_after=doc.get(INSERT_AFTER, {}),
     )
 
 

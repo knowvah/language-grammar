@@ -49,6 +49,9 @@ class Model:
     contexts: dict[str, list[Entry]] = field(default_factory=dict)
     factory: str | None = None
     start_map: dict[str, list[str]] = field(default_factory=dict)
+    overrides: dict[str, Entry] = field(default_factory=dict)
+    insert_before: dict[str, list[Entry]] = field(default_factory=dict)
+    insert_after: dict[str, list[Entry]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

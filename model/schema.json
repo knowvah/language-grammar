@@ -36,7 +36,14 @@
         "type": "array",
         "items": {"$ref": "#/$defs/entry"}
       }
-    }
+    },
+    "overrides": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/patch_key"},
+      "additionalProperties": {"$ref": "#/$defs/command_patch"}
+    },
+    "insert_before": {"$ref": "#/$defs/inserts"},
+    "insert_after": {"$ref": "#/$defs/inserts"}
   },
   "allOf": [
     {
@@ -47,11 +54,49 @@
     {
       "if": {"properties": {"layer": {"const": "document"}}, "required": ["layer"]},
       "else": {"not": {"required": ["start_map"]}}
+    },
+    {
+      "if": {"properties": {"layer": {"enum": ["diagram", "shared"]}}, "required": ["layer"]},
+      "else": {"not": {"anyOf": [
+        {"required": ["overrides"]}, {"required": ["insert_before"]},
+        {"required": ["insert_after"]}
+      ]}}
     }
   ],
   "$defs": {
     "factory_name": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"},
     "model_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"},
+    "patch_key": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+    "inserts": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/patch_key"},
+      "additionalProperties": {
+        "type": "array", "minItems": 1, "items": {"$ref": "#/$defs/command"}
+      }
+    },
+    "command_patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "remove": {"const": true},
+        "command": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "kind": {"enum": ["single", "multiline", "multiline-bracket", "opaque"]},
+        "parts": {"$ref": "#/$defs/part"},
+        "push": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/context_name"}]},
+        "pop": {"oneOf": [{"type": "null"}, {"const": true}]},
+        "set": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/context_name"}]},
+        "end": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/part"}]},
+        "join": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/join"}]}
+      },
+      "if": {"required": ["remove"]},
+      "then": {"maxProperties": 1}
+    },
+    "join": {
+      "type": "object", "additionalProperties": false, "required": ["max_lines"],
+      "properties": {"max_lines": {"type": "integer", "minimum": 1}}
+    },
     "variable_name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
     "context_name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
     "part": {
@@ -132,10 +177,8 @@
         "pop": {"const": true},
         "set": {"$ref": "#/$defs/context_name"},
         "end": {"$ref": "#/$defs/part"},
-        "join": {
-          "type": "object", "additionalProperties": false, "required": ["max_lines"],
-          "properties": {"max_lines": {"type": "integer", "minimum": 1}}
-        }
+        "join": {"$ref": "#/$defs/join"},
+        "refined_by": {"$ref": "#/$defs/model_id"}
       },
       "allOf": [
         {"not": {"required": ["push", "pop"]}},

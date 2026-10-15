@@ -46,6 +46,8 @@ contexts:
 | `include` | top | List of model ids whose variables and contexts become visible. | `extends` (inherit contexts) |
 | `variables` | top | Map `UPPER_SNAKE` name to a Part. | `variables` (there: name to regex string) |
 | `contexts` | top | Map `snake_case` name to an ordered list of entries. Order is the upstream `initCommandsList` order and is significant. | `contexts` |
+| `overrides` | top (`diagram`, `shared`) | Map key to a partial entry, shallow-merged over each matching entry of the resolved model (see "Refining generated models"). | none (added) |
+| `insert_before` / `insert_after` | top (`diagram`, `shared`) | Map key to a list of full entries inserted immediately before / after each matching entry. | none (added) |
 | `include: NAME` | entry | Splice another context in place (rules below). | `include` |
 | `command` | entry | Upstream `Command` simple class name; also the rule id. | none (added; a rule has no id) |
 | `provenance` | entry | Where the rule comes from: `class` (FQCN, required), `file`, `line` (pinned upstream sha), `engine` (`IRegex` or `UBrex`). | none (added) |
@@ -56,6 +58,7 @@ contexts:
 | `push` | entry | Context to enter after matching. | `push` |
 | `pop: true` | entry | Leave the current context. | `pop` |
 | `set` | entry | Replace the current context by the named one. | `set` |
+| `refined_by` | entry | Id of the model whose `overrides` changed this entry; set by the resolver, never hand-written. | none (added) |
 
 ### Multiline kinds
 
@@ -150,6 +153,119 @@ Mirrors `PSystemBuilder.java:133-200` (factory order) and `:257-287` (try loop) 
 * `Verdict.diagram` is the accepting model's `diagram` (compare with the oracle's
   `diagram_type`, which is `null` for non-`TitledDiagram` results); `Verdict.model` is
   its id.
+
+### Refining generated models (`overrides`, `insert_before`, `insert_after`)
+
+A hand-written diagram model replaces its generated base in dispatch (see above) and
+inherits the base's contexts, but must not edit `model/generated/**`. These three
+model-level keys refine individual generated entries in place, keeping upstream order.
+They are allowed on `layer: diagram` and `layer: shared` models only.
+
+```yaml
+overrides:        # key -> partial entry, shallow-merged over each matched entry
+  CommandCreateClassMultilines: {push: class_body}
+  CommandFootboxIgnored: {remove: true}   # drops the matched entry
+insert_before:    # key -> [full entries] placed immediately before each matched entry
+  CommandCreateClass: [{command: ..., provenance: ..., kind: single, parts: ...}]
+insert_after:     # same, immediately after
+  CommandNamespace: [...]
+```
+
+**Keys.** A key matches an entry when it equals the entry's `command` (rule id, e.g.
+`CommandFactoryNote_1`) or the simple class name of `provenance.class` (the part after
+the last `.`, with `$` replaced by `_`). A class-name key matches every repeat of that
+class. Keys live in one id space for the whole resolved model: they apply in every
+context, after entry-level `include` splices are expanded. Beware that a hand-written
+entry whose `provenance.class` is the same class is matched by a class-name key too; use
+the unique `command` id as key, or a different provenance class, to avoid that.
+
+**Collection.** Patches are collected from the model and its transitive model-level
+includes in resolver scope order, key by key: the model's own declaration of a key wins
+over an included one and is used as is (partial entries are not merged across models). A
+`layer: shared` model such as `common` can therefore carry refinements for common
+commands that apply to every diagram model including it. A shared model's patches never
+apply to the shared model itself. `refs` inside patch entries resolve in the scope of the
+model that declared them; `push`/`set` targets must be visible from the model being
+resolved.
+
+**Order of application.** Removes, then overrides, then `insert_before`/`insert_after`.
+Inserted entries are not matched by overrides. Several inserts on one entry keep
+declaration order. An insert key matching a removed entry is an error.
+
+**Merge semantics.**
+
+* The override's keys replace the entry's keys wholesale (`parts` is replaced, not merged).
+  `command` and `provenance` are kept unless the override sets them.
+* `null` deletes a key: `pop: null`, `push: null`, `set: null`, `end: null`, `join: null`.
+  Needed to switch transition kind or turn a `multiline` into a `single`
+  (`{kind: single, end: null}`).
+* `remove: true` must be the only key of its patch.
+* The merged entry gets `refined_by: <model id>` (the declaring model; the last one when
+  several keys match) so provenance stays honest.
+* The merged entry is validated against the entry schema: `push`/`pop`/`set` stay
+  mutually exclusive, `multiline` still needs exactly one of `end`/`join`, `end`/`join`
+  stay forbidden for the other kinds. Replacing `pop: true` by a `push` therefore needs
+  `pop: null` in the same override.
+
+**Errors** (all carry the declaring file and a JSON pointer such as
+`/overrides/CommandCreateClassMultilines`):
+
+* a key matching no entry in a diagram model that collects it, unless the winning
+  declaration comes from an included `layer: shared` model (common commands are absent
+  from some factories);
+* a merged entry that violates the entry schema, or an unknown `push`/`set` context;
+* an insert relative to a removed entry.
+
+The loader also regex-checks `parts`/`end` inside patches. `Model` carries `overrides`,
+`insert_before` and `insert_after` verbatim; `ResolvedModel` contexts already contain
+the result.
+
+Worked example, `model/diagrams/class.yaml`. It extends the generated class diagram and
+the shared `common` model, refines two generated entries and adds one hand-written rule
+before `CommandCreateClass`:
+
+```yaml
+schema_version: 1
+id: class
+layer: diagram
+diagram: CLASS
+factory: ClassDiagramFactory
+include: [gen-class-diagram, common]    # generated `main` is inherited via the include
+
+variables:
+  COMMENT_LINE: {regex: "'.*", ci: false}
+
+overrides:
+  # 1. Enter the class body context instead of scanning for a closing line.
+  CommandCreateClassMultilines:
+    kind: single
+    end: null                           # a single forbids `end`
+    push: class_body
+  # 2. This factory never reaches the footbox command.
+  CommandFootboxIgnored: {remove: true}
+
+insert_before:
+  CommandCreateClass:                   # lands directly before the generated rule
+    - command: CommandClassBlockComment
+      provenance:
+        class: net.sourceforge.plantuml.cucadiagram.BodierLikeClassOrObject
+        file: src/main/java/net/sourceforge/plantuml/cucadiagram/BodierLikeClassOrObject.java
+      kind: single
+      parts: {ref: COMMENT_LINE}        # resolved in this model's scope
+
+contexts:
+  class_body:                           # visible to the `push` above
+    - command: CommandClassBodyClose
+      provenance: {class: net.sourceforge.plantuml.cucadiagram.BodierLikeClassOrObject}
+      kind: single
+      parts: {regex: "^\\s*\\}\\s*$"}
+      pop: true
+```
+
+In the resolved `class` model `main` keeps the upstream order of `gen-class-diagram`
+without `CommandFootboxIgnored`, `CommandClassBlockComment` sits right before
+`CommandCreateClass`, and `CommandCreateClassMultilines` reads `kind: single`,
+`push: class_body`, `refined_by: class`.
 
 ### Ids and files
 
