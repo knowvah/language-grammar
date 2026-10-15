@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from tools.interp.compile import compile_part
-from tools.interp.scan import Deadline, scan_bracket, scan_multiline
+from tools.interp.scan import Deadline, scan_bracket, scan_join, scan_multiline
 from tools.interp.source import Line
 from tools.model import Entry, ResolvedModel
 
@@ -28,11 +28,16 @@ class Rule:
     kind: str
     start: Any
     end: Any
+    max_lines: int | None
     action: str
     target: str
 
     def advance(self, body: list[Line], i: int, deadline: Deadline) -> int | None:
-        """Index after this command given its first line matched; ``None`` = dropped."""
+        """Index after this command starting at ``i``; ``None`` = no match or dropped."""
+        if self.max_lines is not None:
+            return scan_join(self.start, self.max_lines, body, i, deadline)
+        if not deadline.fullmatch(self.start, body[i].trimmed):
+            return None
         if self.kind == KIND_OPAQUE:
             return len(body)
         if self.kind == KIND_MULTILINE:
@@ -51,7 +56,9 @@ def build_rule(entry: Entry) -> Rule:
         if key in entry:
             action, target = key, entry[key]
     end = compile_part(entry["end"]) if "end" in entry else None
-    return Rule(entry["command"], entry["kind"], compile_part(entry["parts"]), end, action, target)
+    max_lines = entry["join"]["max_lines"] if "join" in entry else None
+    start = compile_part(entry["parts"])
+    return Rule(entry["command"], entry["kind"], start, end, max_lines, action, target)
 
 
 class RuleBook:

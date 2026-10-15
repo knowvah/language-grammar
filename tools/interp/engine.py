@@ -34,7 +34,7 @@ may accept what the jar rejects): ``executeArg``/``execute`` results (e.g. unkno
 colors, duplicate entities, ``CommandExecutionResult.error``), ``finalVerification``,
 ``isCommandForbidden``, ``checkFinalError`` / ``isIncomplete``
 (``PSystemCommandFactory.java:157-170``), multi-pass diagrams (``getRequiredPass``),
-``syntaxWithFinalBracket`` handling, ``CommandDecoratorMultine`` line caps, abstract
+``syntaxWithFinalBracket`` handling, abstract
 ``isLineConsistent`` of bracket commands, error *scores* beyond line progress, and
 ``Throwable`` crashes inside a factory (``:275-281``). See also ``tools.interp.compile``
 for regex-dialect gaps.
@@ -137,10 +137,7 @@ class Interpreter:
         self, model: ResolvedModel, context: str, body: list[Line], i: int, deadline: Deadline
     ) -> tuple[Rule, int] | None:
         """``PSystemCommandFactory.getCandidate`` (:223-247)."""
-        first = body[i].trimmed
         for rule in self._book.rules(model, context):
-            if not deadline.fullmatch(rule.start, first):
-                continue
             nxt = rule.advance(body, i, deadline)
             if nxt is not None:
                 return rule, nxt

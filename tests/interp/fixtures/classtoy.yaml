@@ -44,6 +44,25 @@ contexts:
       kind: single
       parts: {literal: swap, ci: true}
       set: ctx_two
+    - command: CommandWrap
+      provenance: {class: toy.CommandWrap}
+      kind: multiline
+      parts:
+        seq:
+          - {literal: wrap, ci: true}
+          - {regex: "\\s+\\w+\\ue100\\w+"}
+          - {opt: {regex: "\\ue100\\w+"}}
+      join: {max_lines: 2}
+    - command: CommandWrapFar
+      provenance: {class: toy.CommandWrapFar}
+      kind: multiline
+      parts: {regex: "far\\ue100\\w+\\ue100\\w+\\ue100\\w+"}
+      join: {max_lines: 2}
+    - command: CommandWrapOpt
+      provenance: {class: toy.CommandWrapOpt}
+      kind: multiline
+      parts: {regex: "opt(?:\\ue100\\w+)?"}
+      join: {max_lines: 1}
     - include: common
   body:
     - command: CommandMember

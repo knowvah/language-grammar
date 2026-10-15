@@ -4,8 +4,10 @@ Upstream compiles every command regex through ``Pattern2.compileInternal`` with
 ``Pattern.CASE_INSENSITIVE`` (``regex/Pattern2.java:114`` at 97a5992) and matches the
 whole trimmed line (``Matcher.matches()``; ``command/SingleLineCommand2.java:102``,
 ``command/CommandMultilines2.java:98``). The same is done here: ``{regex}`` leaves are
-case-insensitive and ``{literal, ci}`` leaves are wrapped in ``(?i:...)`` / ``(?-i:...)``
-according to ``ci``. Patterns such as ``\\p{L}`` need the ``regex`` module, never ``re``.
+case-insensitive only when the model says so: ``{regex, ci: true}`` and ``{literal, ci}``
+leaves are wrapped in ``(?i:...)`` / ``(?-i:...)`` according to ``ci`` (absent = case
+sensitive). The translator sets ``ci: true`` on Pattern2-compiled regexes.
+Patterns such as ``\\p{L}`` need the ``regex`` module, never ``re``.
 
 Known gap: Python's default Unicode ``\\w``/``\\s``/``\\b`` and case folding are broader
 than Java's ASCII defaults. The ``regex.ASCII`` flag would fix that but also disables
@@ -22,7 +24,7 @@ import regex
 
 from tools.model import Part
 
-FLAGS = regex.IGNORECASE
+FLAGS = 0
 LIST_JOINERS = {"seq": "", "alt": "|"}
 QUANTIFIERS = {"opt": "?", "star": "*", "plus": "+"}
 
@@ -40,11 +42,14 @@ def part_to_regex(part: Part) -> str:
         if key in part:
             return "(?:" + part_to_regex(part[key]) + ")" + quantifier
     if "regex" in part:
-        return "(?:" + str(part["regex"]) + ")"
+        return _case_mode(part) + str(part["regex"]) + ")"
     if "literal" in part:
-        mode = "(?i:" if part["ci"] else "(?-i:"
-        return mode + str(regex.escape(part["literal"])) + ")"
+        return _case_mode(part) + str(regex.escape(part["literal"])) + ")"
     raise PartError(f"unresolved or unknown Part: {sorted(part)}")
+
+
+def _case_mode(part: Part) -> str:
+    return "(?i:" if part.get("ci") else "(?-i:"
 
 
 def part_key(part: Part) -> str:

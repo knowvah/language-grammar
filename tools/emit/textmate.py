@@ -19,6 +19,10 @@ Mapping from model entries:
   alternation of the pushed context's ``pop`` entries (``$`` if it has none).
 * a multiline entry without ``end`` (the generated models omit it) ends at ``^\\s*\\}`` for
   ``multiline-bracket`` and at the end of the first line otherwise.
+* a ``multiline`` entry with ``join`` is approximated as a single-line ``match`` of its
+  ``parts`` (upstream re-matches up to ``max_lines`` + 1 lines joined with U+E100).
+* a regex Part with ``ci: true`` is wrapped in ``(?i:...)`` (supported by Oniguruma and
+  PCRE2); absent ``ci`` stays case-sensitive.
 * ``pop`` entries are ordinary ``match`` rules outside a pushed context.
 
 Approximation: TextMate is line based and picks the leftmost-first rule of the active
@@ -44,6 +48,7 @@ SCOPE_NAME = "source.plantuml"
 FILE_TYPES = ["puml", "plantuml", "pu", "iuml", "wsd"]
 MULTILINE_KINDS = frozenset({"multiline", "multiline-bracket"})
 LINE_END = "$"
+JOIN_KEY = "join"
 BRACKET_KIND = "multiline-bracket"
 BRACKET_END = "^\\s*\\}"
 ENCODING = "utf-8"
@@ -107,7 +112,7 @@ class _Rules:
         """One rule for a command entry."""
         regex, captures = flatten(entry["parts"])
         target = entry.get("push") or entry.get("set")
-        if entry["kind"] in MULTILINE_KINDS:
+        if entry["kind"] in MULTILINE_KINDS and JOIN_KEY not in entry:
             end_regex, end_captures = self._multiline_end(entry)
         elif target in self.model.contexts:
             end_regex, end_captures = self._pop_end(target)

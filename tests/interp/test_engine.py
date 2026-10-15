@@ -240,3 +240,32 @@ def _single_rule_models(parts: dict[str, str], push: str | None = None) -> Resol
         contexts={"main": [entry]},
     )
     return {"only": model}
+
+
+def test_join_k_1_is_the_single_line_case(models: ResolvedModels) -> None:
+    assert accepts(models, uml("opt", "beta x"))["accepted"] is True
+
+
+def test_join_smallest_k_wins(models: ResolvedModels) -> None:
+    # "opt" matches at k=1, so "z" is dispatched on its own and fails.
+    assert failure_of(accepts(models, uml("opt", "z"))) == (3, "z")
+
+
+def test_join_joins_following_lines_with_private_use_joiner(models: ResolvedModels) -> None:
+    assert accepts(models, uml("wrap a", "b", "beta x"))["accepted"] is True
+    assert failure_of(accepts(models, uml("wrap a", "b", "c"))) == (4, "c")
+
+
+def test_join_beyond_max_lines_plus_one_is_dropped(models: ResolvedModels) -> None:
+    # CommandWrapFar needs four units but max_lines=2 allows at most three.
+    assert failure_of(accepts(models, uml("far", "a", "b", "c"))) == (2, "far")
+
+
+def test_join_dropped_when_lines_run_out(models: ResolvedModels) -> None:
+    assert failure_of(accepts(models, uml("wrap a"))) == (2, "wrap a")
+
+
+def test_join_unit_is_an_embedded_group(models: ResolvedModels) -> None:
+    # Two units joined: "wrap a" + one "{{uml ... }}" group that is not \w+ -> dropped.
+    verdict = accepts(models, uml("wrap a", "{{uml", "x", "}}"))
+    assert failure_of(verdict) == (2, "wrap a")

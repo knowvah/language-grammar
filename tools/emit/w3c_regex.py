@@ -304,9 +304,10 @@ class _RegexParser:
         return SIMPLE_ESCAPES.get(esc, ord(esc))
 
 
-def translate_regex(pattern: str, sink: Sink, rule: str) -> Node:
-    """W3C expression for ``pattern``; unparseable patterns become one placeholder."""
+def translate_regex(pattern: str, sink: Sink, rule: str, ci: bool = False) -> Node:
+    """W3C expression for ``pattern`` (case-folded when ``ci``); unparseable patterns
+    become one placeholder."""
     try:
-        return _RegexParser(pattern, sink, rule, ci=False).parse()
+        return _RegexParser(pattern, sink, rule, ci=ci).parse()
     except (IndexError, ValueError):
         return sink.placeholder(rule, UNSUPPORTED, pattern, ANY_CHAR + "*")

@@ -75,15 +75,17 @@ class Flattener:
             if key in part:
                 return "(?:" + self.build(part[key]) + ")" + quantifier
         if "regex" in part:
-            return self._leaf(part, self._regex_text(part["regex"]))
+            return self._leaf(part, self._regex_text(part["regex"], bool(part.get("ci"))))
         if "literal" in part:
             text = escape_literal(part["literal"])
             return self._leaf(part, f"(?i:{text})" if part["ci"] else text)
         raise ValueError(f"unknown Part: {sorted(part)}")
 
     @staticmethod
-    def _regex_text(pattern: str) -> str:
+    def _regex_text(pattern: str, ci: bool) -> str:
         text = demote_groups(pattern)
+        if ci:
+            return f"(?i:{text})"
         return f"(?:{text})" if "|" in text else text
 
     def _leaf(self, part: Part, text: str) -> str:

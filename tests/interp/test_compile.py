@@ -13,11 +13,11 @@ def matches(part: Part, text: str) -> bool:
 
 
 def test_part_to_regex_forms() -> None:
-    assert part_to_regex({"seq": [{"regex": "a"}, {"regex": "b"}]}) == "(?:(?:a)(?:b))"
-    assert part_to_regex({"alt": [{"regex": "a"}, {"regex": "b"}]}) == "(?:(?:a)|(?:b))"
-    assert part_to_regex({"opt": {"regex": "a"}}) == "(?:(?:a))?"
-    assert part_to_regex({"star": {"regex": "a"}}) == "(?:(?:a))*"
-    assert part_to_regex({"plus": {"regex": "a"}}) == "(?:(?:a))+"
+    assert part_to_regex({"seq": [{"regex": "a"}, {"regex": "b"}]}) == "(?:(?-i:a)(?-i:b))"
+    assert part_to_regex({"alt": [{"regex": "a"}, {"regex": "b"}]}) == "(?:(?-i:a)|(?-i:b))"
+    assert part_to_regex({"opt": {"regex": "a"}}) == "(?:(?-i:a))?"
+    assert part_to_regex({"star": {"regex": "a"}}) == "(?:(?-i:a))*"
+    assert part_to_regex({"plus": {"regex": "a"}}) == "(?:(?-i:a))+"
     assert part_to_regex({"literal": "a.b", "ci": True}) == "(?i:a\\.b)"
     assert part_to_regex({"literal": "a", "ci": False}) == "(?-i:a)"
 
@@ -33,8 +33,11 @@ def test_literal_is_escaped() -> None:
     assert not matches({"literal": "a.b", "ci": True}, "axb")
 
 
-def test_regex_leaf_is_case_insensitive_like_upstream() -> None:
-    assert matches({"regex": "abc"}, "ABC")
+def test_regex_leaf_is_case_insensitive_only_with_ci_true() -> None:
+    assert matches({"regex": "abc", "ci": True}, "ABC")
+    assert not matches({"regex": "abc"}, "ABC")
+    assert not matches({"regex": "abc", "ci": False}, "ABC")
+    assert matches({"regex": "abc"}, "abc")
 
 
 def test_unicode_property_classes_need_regex_module() -> None:

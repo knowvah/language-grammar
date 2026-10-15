@@ -132,8 +132,8 @@ paths.
 ### Loading API
 
 ```python
-from tools.model.load import load_dir          # load_dir(path) -> dict[str, Model]
-from tools.model.resolve import resolve        # resolve(models) -> ResolvedModels
+from tools.model.load import load_dir  # load_dir(path) -> dict[str, Model]
+from tools.model.resolve import resolve  # resolve(models) -> ResolvedModels
 ```
 
 `python -m tools.model.load --check model/` exits non-zero on any error (schema

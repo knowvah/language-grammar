@@ -14,6 +14,11 @@ Conventions (repeated in the generated header):
 * Lossy constructs -- lookaround, word boundaries, backreferences, ``\\p{..}`` classes, and
   inline flags other than ``i`` -- become a placeholder production
   ``<rule>_lossy ::= <approximation> /* regex: <original> */`` and one ``Lossy`` entry.
+* A regex Part with ``ci: true`` is case-folded with the same convention (each cased
+  letter and class range gains its other case); absent ``ci`` is case-sensitive.
+* ``multiline`` with ``join`` is approximated as a single line (only ``parts``);
+  ``multiline-bracket`` as a body closed by a line ``WS* "}"`` (bracket depth is not
+  modelled).
 * Structure mirrors the Lark emitter: ``push``/``set`` become nested context rules, ordered
   alternatives become unordered ``|``.
 
@@ -27,8 +32,9 @@ from collections import Counter
 
 from tools.emit.lark import (
     DIAGRAM_LAYER,
+    KIND_BRACKET,
+    KIND_MULTILINE,
     MAIN_CONTEXT,
-    MULTILINE_KINDS,
     UML_KEYWORD,
     _Names,
     snake,
@@ -36,6 +42,7 @@ from tools.emit.lark import (
 )
 from tools.emit.w3c_regex import translate_regex
 from tools.emit.w3c_text import (
+    BRACKET_CLOSE,
     INLINE_WS,
     NOT_EOL,
     PRELUDE,
@@ -106,7 +113,9 @@ class _Diagram:
 
     def _entry_expr(self, entry: Entry) -> Node:
         expr = self.part(entry["parts"])
-        if entry["kind"] in MULTILINE_KINDS:
+        if entry["kind"] == KIND_BRACKET:
+            return join_seq([expr, Node("NL"), Node("(BODY_LINE? NL)*"), Node(BRACKET_CLOSE)])
+        if entry["kind"] == KIND_MULTILINE and "end" in entry:
             tail = [Node("NL"), Node("(BODY_LINE? NL)*"), self.part(entry["end"])]
             return join_seq([expr, *tail])
         target = entry.get("push") or entry.get("set")
@@ -132,7 +141,7 @@ class _Diagram:
         if "literal" in part:
             literal = str(part["literal"])
             return ci_literal(literal) if part.get("ci") else quote(literal)
-        return translate_regex(part["regex"], self.sink, self.rule)
+        return translate_regex(part["regex"], self.sink, self.rule, bool(part.get("ci")))
 
 
 def _blocks(groups: dict[str, list[str]]) -> list[str]:

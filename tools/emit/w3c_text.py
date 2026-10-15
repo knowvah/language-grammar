@@ -26,7 +26,9 @@ PRELUDE = (
     "NL ::= #xD? #xA",
     f"WS ::= {INLINE_WS}+",
     f"BODY_LINE ::= {NOT_EOL}+",
+    f'BRACKET_CLOSE ::= {INLINE_WS}* "}}"',
 )
+BRACKET_CLOSE = "BRACKET_CLOSE"
 
 Ranges = list[tuple[int, int]]
 SHORTHANDS: dict[str, Ranges] = {

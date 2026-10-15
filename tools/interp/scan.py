@@ -14,9 +14,13 @@ lines drops the candidate so the next command is tried.
   one; below 0 is ``NOT_OK``; ``OK`` when depth returns to 0. Depth is maintained
   incrementally here instead of recomputed (same result, linear time).
 
+* ``multiline`` + ``join``: ``command/CommandDecoratorMultine.java:77-93`` with the cap at
+  ``PSystemCommandFactory.java:281``: units 1..k (k <= max_lines + 1) are joined with
+  U+E100 (``utils/BlocLines.java:296``) and must fully match ``parts``; the smallest k
+  wins, k = 1 is the single-line case, and no match within the cap drops the command.
+
 Known gaps (not representable in the model): ``isLineConsistent`` (abstract, per
-command), ``CommandDecoratorMultine.getNbMaxLines`` line cap (``:281``),
-``finalVerification`` hooks, and the ``MultilinesStrategy.REMOVE_STARTING_QUOTE`` line
+command), ``finalVerification`` hooks, and the ``MultilinesStrategy.REMOVE_STARTING_QUOTE`` line
 filter (``MultilinesStrategy.java``; ``'`` lines are already gone, see ``source``).
 """
 
@@ -30,6 +34,7 @@ from tools.interp.source import Line, embedded_type, is_embedded_end
 
 BRACKET_OPEN = "{"
 BRACKET_CLOSE = "}"
+JOINER = "\ue100"
 
 
 class BlockTimeout(Exception):  # noqa: N818 - control-flow signal, not an error
@@ -92,5 +97,20 @@ def scan_bracket(body: list[Line], i: int) -> int | None:
                 return None
         j = nxt
         if j - i > 1 and level == 0:
+            return j
+    return None
+
+
+def scan_join(
+    start: Any, max_lines: int, body: list[Line], i: int, deadline: Deadline
+) -> int | None:
+    """Index after a ``join`` command starting at ``i``, or ``None`` (dropped)."""
+    j = i
+    for _ in range(max_lines + 1):
+        if j >= len(body):
+            return None
+        j = unit_end(body, j)
+        joined = JOINER.join(line.trimmed for line in body[i:j])
+        if deadline.fullmatch(start, joined):
             return j
     return None
