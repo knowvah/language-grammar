@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/knowvah/language-grammar/model/schema.json",
+  "title": "PlantUML command model (contract I2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "layer"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"$ref": "#/$defs/model_id"},
+    "layer": {"enum": ["document", "preproc", "diagram", "shared"]},
+    "diagram": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+    "include": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/model_id"}
+    },
+    "variables": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/variable_name"},
+      "additionalProperties": {"$ref": "#/$defs/part"}
+    },
+    "contexts": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/context_name"},
+      "additionalProperties": {
+        "type": "array",
+        "items": {"$ref": "#/$defs/entry"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"layer": {"const": "diagram"}}, "required": ["layer"]},
+      "then": {"required": ["diagram"]},
+      "else": {"not": {"required": ["diagram"]}}
+    }
+  ],
+  "$defs": {
+    "model_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"},
+    "variable_name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+    "context_name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "part": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["seq"],
+          "properties": {"seq": {"type": "array", "items": {"$ref": "#/$defs/part"}}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["alt"],
+          "properties": {"alt": {"type": "array", "items": {"$ref": "#/$defs/part"}}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["opt"],
+          "properties": {"opt": {"$ref": "#/$defs/part"}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["star"],
+          "properties": {"star": {"$ref": "#/$defs/part"}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["plus"],
+          "properties": {"plus": {"$ref": "#/$defs/part"}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["ref"],
+          "properties": {"ref": {"$ref": "#/$defs/variable_name"}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["regex"],
+          "properties": {
+            "regex": {"type": "string"},
+            "name": {"type": "string"},
+            "scope": {"type": "string"}
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["literal", "ci"],
+          "properties": {
+            "literal": {"type": "string"},
+            "ci": {"type": "boolean"},
+            "scope": {"type": "string"}
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": {"type": "string"},
+        "file": {"type": "string"},
+        "line": {"type": "integer", "minimum": 1},
+        "engine": {"enum": ["IRegex", "UBrex"]}
+      }
+    },
+    "entry": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["include"],
+          "properties": {"include": {"type": "string", "minLength": 1}}
+        },
+        {"$ref": "#/$defs/command"}
+      ]
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "provenance", "kind", "parts"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "kind": {"enum": ["single", "multiline", "multiline-bracket", "opaque"]},
+        "parts": {"$ref": "#/$defs/part"},
+        "push": {"$ref": "#/$defs/context_name"},
+        "pop": {"const": true},
+        "set": {"$ref": "#/$defs/context_name"},
+        "end": {"$ref": "#/$defs/part"}
+      },
+      "allOf": [
+        {"not": {"required": ["push", "pop"]}},
+        {"not": {"required": ["push", "set"]}},
+        {"not": {"required": ["pop", "set"]}},
+        {
+          "if": {"properties": {"kind": {"enum": ["single", "opaque"]}}, "required": ["kind"]},
+          "then": {"not": {"required": ["end"]}}
+        }
+      ]
+    }
+  }
+}
