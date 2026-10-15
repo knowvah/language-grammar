@@ -246,3 +246,28 @@ Validated on a scratch copy with `model/diagrams/sequence*.yaml` in place: 327 p
 ```
 
 - sequence / test_common top-model lookup → applied by the orchestrator (see the next commit).
+
+## class: test_style reads every context of the CLASS top model (blocking the full suite)
+
+`model/diagrams/class.yaml` (T18) gives ClassDiagramFactory one context per diagram state
+(`main`, `main_mixing`, `class_group`, `class_group_mixing`, `class_orphan`), each
+splicing `gen-class-diagram#main`, so every style entry appears once per context.
+`tests/families/test_style.py::entries_named` collects entries from all contexts and
+expects one copy. T17's sequence model splices its generated main into several contexts
+the same way (reported by t17-sequence). Proposed change (verified: 107/107 pass on a
+scratch copy with the T18 model in place):
+
+```diff
+@@ def entries_named(command: str) -> list[dict[str, Any]]:
+     model = style_models()[class_top()]
+-    return [e for es in model.contexts.values() for e in es if e["command"] == command]
++    return [e for e in model.contexts[MAIN] if e["command"] == command]
+```
+
+Failing today:
+- test_single_line_css_is_refined_in_place
+- test_structure_entry_pushes_body_closed_by_upstream_end
+- test_join_entries_never_match_a_single_line[CommandStyleMultilinesCSS]
+- test_join_entries_never_match_a_single_line[CommandStyleMultilinesCSSReject]
+
+- class / test_style reads only `main` → applied by the orchestrator with the T18 commit.

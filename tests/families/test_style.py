@@ -139,7 +139,7 @@ def class_top() -> str:
 
 def entries_named(command: str) -> list[dict[str, Any]]:
     model = style_models()[class_top()]
-    return [e for es in model.contexts.values() for e in es if e["command"] == command]
+    return [e for e in model.contexts[MAIN] if e["command"] == command]
 
 
 def simple_class(entry: dict[str, Any]) -> str:
