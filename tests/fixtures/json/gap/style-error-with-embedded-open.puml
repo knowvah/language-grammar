@@ -1,0 +1,10 @@
+' json: JsonStyle, JsonStyleError
+' jar: rejected
+' gap: the interpreter glues the {{ line and the rest of the block into one unit, so the error join cannot end at </style>
+@startjson
+<style>
+:depth(1) } a,b
+{{
+</style>
+[1]
+@endjson
