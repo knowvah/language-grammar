@@ -21,7 +21,7 @@ from typing import Any
 import yaml
 
 from tools.model import Part
-from tools.translate import iregex
+from tools.translate import iregex, ubrex, ubrex_gantt
 from tools.translate.dedupe import Unit, dedupe
 from tools.translate.iregex import KIND_OPAQUE, Translated
 from tools.translate.provenance import ProvenanceIndex, SourceReader
@@ -35,14 +35,18 @@ ID_PREFIX = "gen-"
 MAIN_CONTEXT = "main"
 SCHEMA_VERSION = 1
 GANTT_LANG = "gantt-lang.json"
+GANTT_LANG_ID = "gantt-lang"
 FACTORY_SUFFIX = "Factory"
 PSYSTEM = "PSystem"
 ENGINE_KEY = "engine"
 EXIT_OK = 0
 
 Translator = Callable[[dict[str, Any]], Translated]
-# Engine dispatch. # T07 hook: add `"UBrex": ubrex.translate_command` here and regenerate.
-TRANSLATORS: dict[str, Translator] = {"IRegex": iregex.translate_command}
+# Engine dispatch.
+TRANSLATORS: dict[str, Translator] = {
+    "IRegex": iregex.translate_command,
+    "UBrex": ubrex.translate_command,
+}
 
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
@@ -114,6 +118,8 @@ def build_rules(
         translate = translators.get(cmd[ENGINE_KEY])
         if translate is None:
             summary.skipped_by_engine[cmd[ENGINE_KEY]] += 1
+            continue
+        if cmd["start"] is None:  # NaturalGanttCommand: no tree, see gantt-lang.yaml
             continue
         result = translate(cmd)
         summary.warnings.update(result.warnings)
@@ -235,6 +241,21 @@ def load_extracted(directory: Path) -> dict[str, dict[str, Any]]:
     return out
 
 
+def gantt_lang_files(extracted: Path, summary: Summary) -> dict[str, str]:
+    """``{gantt-lang.yaml: text}`` from ``gantt-lang.json``; empty when that file is absent."""
+    path = extracted / GANTT_LANG
+    if not path.exists():
+        return {}
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    warnings: list[str] = []
+    variables, lookup = ubrex_gantt.build_variables(doc, warnings)
+    summary.warnings.update(warnings)
+    summary.variables += len(variables)
+    body = {"schema_version": SCHEMA_VERSION, "id": GANTT_LANG_ID, "layer": "shared"}
+    body["variables"] = variables
+    return {f"{GANTT_LANG_ID}.yaml": _dump(body, ubrex_gantt.sentence_notes(doc, lookup))}
+
+
 def write_files(files: Mapping[str, str], directory: Path) -> None:
     """Write ``files`` and remove stale generated files this tool wrote earlier."""
     directory.mkdir(parents=True, exist_ok=True)
@@ -253,6 +274,8 @@ def main(argv: Sequence[str] | None = None, reader: SourceReader | None = None) 
     parser.add_argument("--out", type=Path, default=OUTPUT_DIR)
     args = parser.parse_args(argv)
     files, summary = generate(load_extracted(args.extracted), reader)
+    files.update(gantt_lang_files(args.extracted, summary))
+    summary.files = len(files)
     write_files(files, args.out)
     print(summary.line(), file=sys.stderr)
     return EXIT_OK
