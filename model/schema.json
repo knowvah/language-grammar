@@ -70,6 +70,7 @@
           "type": "object", "additionalProperties": false, "required": ["regex"],
           "properties": {
             "regex": {"type": "string"},
+            "ci": {"type": "boolean"},
             "name": {"type": "string"},
             "scope": {"type": "string"}
           }
@@ -116,15 +117,24 @@
         "push": {"$ref": "#/$defs/context_name"},
         "pop": {"const": true},
         "set": {"$ref": "#/$defs/context_name"},
-        "end": {"$ref": "#/$defs/part"}
+        "end": {"$ref": "#/$defs/part"},
+        "join": {
+          "type": "object", "additionalProperties": false, "required": ["max_lines"],
+          "properties": {"max_lines": {"type": "integer", "minimum": 1}}
+        }
       },
       "allOf": [
         {"not": {"required": ["push", "pop"]}},
         {"not": {"required": ["push", "set"]}},
         {"not": {"required": ["pop", "set"]}},
         {
-          "if": {"properties": {"kind": {"enum": ["single", "opaque"]}}, "required": ["kind"]},
-          "then": {"not": {"required": ["end"]}}
+          "if": {"properties": {"kind": {"enum": ["single", "opaque", "multiline-bracket"]}},
+                 "required": ["kind"]},
+          "then": {"allOf": [{"not": {"required": ["end"]}}, {"not": {"required": ["join"]}}]}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "multiline"}}, "required": ["kind"]},
+          "then": {"oneOf": [{"required": ["end"]}, {"required": ["join"]}]}
         }
       ]
     }

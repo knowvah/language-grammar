@@ -49,12 +49,37 @@ contexts:
 | `include: NAME` | entry | Splice another context in place (rules below). | `include` |
 | `command` | entry | Upstream `Command` simple class name; also the rule id. | none (added; a rule has no id) |
 | `provenance` | entry | Where the rule comes from: `class` (FQCN, required), `file`, `line` (pinned upstream sha), `engine` (`IRegex` or `UBrex`). | none (added) |
-| `kind` | entry | `single`, `multiline`, `multiline-bracket` or `opaque`. | none (added) |
+| `kind` | entry | `single`, `multiline`, `multiline-bracket` or `opaque` (see "Multiline kinds"). | none (added) |
 | `parts` | entry | The Part matched by the command's first line. | `match` |
-| `end` | entry | Part closing a multiline command. Forbidden for `single` and `opaque`. | `escape` / pop-rule `match` (closest) |
+| `end` | entry | Part closing a `multiline` command. Forbidden for every other kind. | `escape` / pop-rule `match` (closest) |
+| `join: {max_lines: N}` | entry | `multiline` only, instead of `end`: the lines are joined and re-matched against `parts` (see below). | none (added) |
 | `push` | entry | Context to enter after matching. | `push` |
 | `pop: true` | entry | Leave the current context. | `pop` |
 | `set` | entry | Replace the current context by the named one. | `set` |
+
+### Multiline kinds
+
+Mirrors `command/PSystemCommandFactory.java:268-307` (`isMultilineCommandOk`) at 97a5992.
+Every consumer (interpreter, emitters) must implement these exactly as written here.
+
+| Kind | First line | Completion |
+|---|---|---|
+| `single` | `parts` matches the whole trimmed line. | That line. |
+| `multiline` + `end` | `parts` matches. | First later line whose trimmed text fully matches `end` (`CommandMultilines2.java:79-110`). |
+| `multiline` + `join` | (lines joined) | Lines `1..k` (k ≤ `max_lines`+1) joined with U+E100 (`utils/BlocLines.java:296`, `jaws/Jaws.java:47`) fully match `parts`; the smallest such k wins (`CommandDecoratorMultine.java:77-93`, cap at `PSystemCommandFactory.java:281`). k = 1 is the single-line case. |
+| `multiline-bracket` | `parts` matches (it ends in `{`). | Bracket depth returns to 0: depth starts at 1, a trimmed line ending in `{` adds one, ending in `}` removes one (`CommandMultilinesBracket.java:64-96`). |
+| `opaque` | `parts` matches. | Rest of the block (non-command factory). |
+
+Emitters that cannot express a completion rule exactly (Lark, W3C, TextMate) approximate
+it and document the approximation in their module docstring: `join` as a single line;
+bracket depth as a body closed by a line `\s*\}`.
+
+### Case sensitivity
+
+Upstream compiles every IRegex command through `Pattern2` with `CASE_INSENSITIVE`
+(`regex/Pattern2.java:114`), so generated regex Parts of such commands carry `ci: true`.
+Plain `java.util.regex.Pattern` patterns (some non-command factories) are
+case-sensitive and carry no `ci`. Hand-written models state `ci` explicitly where needed.
 
 `push`, `pop` and `set` are mutually exclusive. `push`/`set` targets must name a context
 visible from the model.
@@ -69,7 +94,7 @@ A Part is exactly one of:
 | `{alt: [Part]}` | Ordered alternatives. | `a\|b` |
 | `{opt: Part}` / `{star: Part}` / `{plus: Part}` | `?`, `*`, `+`. | `?`, `*`, `+` |
 | `{ref: VAR}` | Use a variable. Inlined by the resolver. | `{{VAR}}` interpolation |
-| `{regex: str, name?: str, scope?: str}` | A regex; `name` labels the capture, `scope` is a TextMate scope. | `match` + `scope` / `captures` |
+| `{regex: str, ci?: bool, name?: str, scope?: str}` | A regex; `ci: true` = case-insensitive (absent = case-sensitive), `name` labels the capture, `scope` is a TextMate scope. | `match` + `scope` / `captures` |
 | `{literal: str, ci: bool, scope?: str}` | Fixed text; `ci` = case-insensitive. | literal `match` with `(?i)` |
 
 Regex rules (checked by the loader):
