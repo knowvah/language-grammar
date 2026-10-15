@@ -52,39 +52,24 @@ cases:
   plantuml-ts:class/godixi-01-fizo921.puml#0:
     class: bug
     note: "Lark only: `set` emitted as `push` (queued emitter fix); interpreter agrees with the jar"
-  # T21b: Lark timeouts (10 s budget) that vary with machine load (load average 150-280 while
-  # measured; 11, 6 and 7 timeouts in three runs of the same sample). Each block is slow
-  # without T21b too; the swimlane-strategy heads (activity3-structure-lanes.yaml) add an
-  # exit at every deciding top-level line, which Lark keeps alongside the generated rule
-  # (queued: "activity3: interpreter-only state heads double Lark derivations"). Times:
-  # oracle-preprocessed block, grammar from model/ without -> with T21b, same tools/ state.
-  plantuml-ts:activity/cakeca-72-kara622.puml#0:
-    class: bug
-    note: "Lark timeout only: 1.5 s -> 3.2 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
+  # Lark timeouts (10 s budget) under machine load (load average ~300 while measured). The
+  # model does not cause them: the swimlane-strategy heads are `emit: false`
+  # (activity3-structure-lanes.yaml), and A/B grammars from the same model/ and tools/ state
+  # without -> with T21b parse the oracle-preprocessed blocks in the same time (mean of two
+  # runs). Blocks that stay under 7 s both ways (tobajo, dajuko, roroko, cakeca, mudobi) no
+  # longer time out.
   plantuml-ts:activity/cigagu-31-rime196.puml#0:
     class: bug
-    note: "Lark timeout only: 7.5 s -> 8.4 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
+    note: "Lark timeout only, under load: 8.3 s without T21b, 9.4 s with; the interpreter agrees with the jar"
   plantuml-ts:activity/judatu-15-xize591.puml#0:
     class: bug
-    note: "Lark timeout only: 16.4 s -> 19.5 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
-  plantuml-ts:activity/mudobi-07-biji996.puml#0:
-    class: bug
-    note: "Lark timeout only: 1.0 s -> 1.4 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
-  plantuml-ts:activity/roroko-26-coje324.puml#0:
-    class: bug
-    note: "Lark timeout only: 2.1 s -> 4.1 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
-  plantuml-ts:activity/tobajo-64-mipi810.puml#0:
-    class: bug
-    note: "Lark timeout only: 5.1 s -> 11.5 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
+    note: "Lark timeout only, under load: 23.1 s without T21b, 21.3 s with; the interpreter agrees with the jar"
   plantuml-ts:class/bofaxe-86-mizu331.puml#0:
     class: bug
-    note: "Lark timeout only: 51.0 s -> 105.5 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
-  plantuml-ts:class/dajuko-60-lozu517.puml#0:
-    class: bug
-    note: "Lark timeout only: 5.0 s -> 9.5 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
+    note: "Lark timeout only, under load: 50.5 s without T21b, 51.0 s with; the interpreter agrees with the jar"
   plantuml-ts:class/lidumi-54-moza355.puml#0:
     class: bug
-    note: "Lark timeout only: 7.3 s -> 8.0 s with T21b's lanes heads under load; the interpreter agrees with the jar (queued `emit: false`)"
+    note: "Lark timeout only, under load: 9.6 s without T21b, 9.6 s with; the interpreter agrees with the jar"
   # Pre-existing (same with the generated model alone):
   plantuml-ts:activity/juleki-83-xusi470.puml#0:
     class: bug

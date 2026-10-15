@@ -227,6 +227,8 @@ def test_copy_carries_its_transition(act: ResolvedModel, copy: str, transition: 
     mine = entry(act, where(act, copy), copy)
     assert mine[key] == value
     assert not {"push", "pop", "set"} - {key} & set(mine)
+    # State heads are interpreter-only; the group closers (pop) must reach the emitters.
+    assert mine.get("emit") is (False if key == "set" else None)
 
 
 def test_lane_rejects_are_rejects(act: ResolvedModel) -> None:

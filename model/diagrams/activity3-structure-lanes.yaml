@@ -44,6 +44,11 @@
 #   leaves out the color prefix, which earlier commands also take (`#red:repeat`,
 #   `#red:if (x) then`, ...; CommandActivityLong3 is registered after them).
 # Never FR: the model is undecided or ALLOWED wherever upstream may be ALLOWED.
+#
+# Emitters. Every head with a `set` here is `emit: false` (interpreter-only): its generated
+# twin already accepts the same lines, and as an extra exit it only made Lark start one
+# root form per deciding line (A/B timings in reports/classify/activity3.yaml). Emitters
+# therefore see T21a's top level plus the swimlane rejects they drop anyway.
 schema_version: 1
 id: activity3-structure-lanes
 layer: shared
@@ -89,6 +94,7 @@ contexts:
                   - {literal: end, ci: true}
           - {regex: ";?", ci: true}
       set: a3_lanes_main
+      emit: false
     - include: a3_split_body
 
   # The heads of the undecided top level, in upstream order.
@@ -105,6 +111,7 @@ contexts:
       kind: single
       parts: {ref: A3_SWIMLANE}
       set: a3_lanes_main
+      emit: false
     # CommandSwimlane2.java:60.
     - command: Activity3Lane2First
       provenance:
@@ -117,6 +124,7 @@ contexts:
       kind: single
       parts: {ref: A3_SWIMLANE2}
       set: a3_lanes_main
+      emit: false
     # CommandActivity3.java:66 -> addActivity :114.
     - command: Activity3ActivityDecides
       provenance:
@@ -141,6 +149,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - opt: {ref: URL}
       set: a3_nolanes_main
+      emit: false
     # CommandSplit3.java:55 -> split() :248-254 leaves the strategy alone (see header).
     - command: Activity3SplitUndecided
       provenance:
@@ -156,6 +165,7 @@ contexts:
           - {literal: split, ci: true}
           - {regex: ";?", ci: true}
       set: a3_split_top
+      emit: false
     # CommandStart3.java:58 -> start() :154.
     - command: Activity3StartDecides
       provenance:
@@ -173,6 +183,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - opt: {ref: A3_STEREOGROUP}
       set: a3_nolanes_main
+      emit: false
     # CommandStop3.java:58 -> stop() :160.
     - command: Activity3StopDecides
       provenance:
@@ -190,6 +201,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - opt: {ref: A3_STEREOGROUP}
       set: a3_nolanes_main
+      emit: false
     # CommandCircleSpot3.java:58 -> addSpot() :136.
     - command: Activity3SpotDecides
       provenance:
@@ -206,6 +218,7 @@ contexts:
           - {regex: "\\((\\S)\\)", ci: true, name: SPOT}
           - {regex: ";?", ci: true}
       set: a3_nolanes_main
+      emit: false
     # CommandBreak.java:55 -> breakInstruction() :195.
     - command: Activity3BreakDecides
       provenance:
@@ -221,6 +234,7 @@ contexts:
           - {literal: break, ci: true}
           - {regex: ";?", ci: true}
       set: a3_nolanes_main
+      emit: false
     # CommandEnd3.java:58 -> end() :169.
     - command: Activity3EndDecides
       provenance:
@@ -238,6 +252,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - opt: {ref: A3_STEREOGROUP}
       set: a3_nolanes_main
+      emit: false
     # CommandActivityLong3.java:78 -> addActivity :114. Uncolored first line only (see
     # header); the trailing guard leaves CommandKill3's `.*detach;?` lines alone.
     - command: Activity3ActivityLongDecides
@@ -263,6 +278,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - opt: {ref: URL}
       set: a3_nolanes_main
+      emit: false
     # CommandActivityList.java:62 -> addActivity :114. The leading guard leaves the arrows
     # (CommandArrow3/CommandArrowLong3, registered earlier) alone, the trailing one
     # CommandKill3's `.*detach;?` lines.
@@ -287,6 +303,7 @@ contexts:
           - opt: {ref: URL}
           - {ref: A3_NOT_DETACH}
       set: a3_nolanes_main
+      emit: false
 
   # FORBIDDEN: swimlane() fails (ActivityDiagram3.java:90-91).
   a3_reject_lanes:
