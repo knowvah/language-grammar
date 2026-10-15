@@ -1,0 +1,5 @@
+' gantt: CommandSeparator
+' gap: a separator or group without a real task: checkFinalError NPE (needs diagram-level state)
+@startgantt
+--
+@endgantt

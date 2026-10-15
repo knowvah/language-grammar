@@ -1,0 +1,527 @@
+{
+  "cases": [
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 5th of december 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 5th of december 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt0.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 5th of december 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 5th of december 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt0.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 5th of december 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 5th of december 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt1.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 5th of december 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 5th of december 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt1.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 3,
+        "text": "saturday are closed"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_DAY_OF_WEEK) saturday are closed",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt10.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 3,
+        "text": "saturday are closed"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_DAY_OF_WEEK) saturday are closed",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt10.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 4,
+        "text": "2020/10/26 to 2020/11/01 are colored in salmon"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_DAYS_AS_DATES) 2020/10/26 to 2020/11/01 are colored in salmon",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt11.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 4,
+        "text": "2020/10/26 to 2020/11/01 are colored in salmon"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_DAYS_AS_DATES) 2020/10/26 to 2020/11/01 are colored in salmon",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt11.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "project starts on 2020-07-01"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) project starts on 2020-07-01",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt3.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "project starts on 2020-07-01"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) project starts on 2020-07-01",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt3.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 20th of september 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 20th of september 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt4.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 20th of september 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 20th of september 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt4.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 3,
+        "text": "Project starts the 20th of september 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 20th of september 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt5.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 3,
+        "text": "Project starts the 20th of september 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 20th of september 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt5.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 21,
+        "text": "Project starts the 1st of january 2021"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 1st of january 2021",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt6.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 21,
+        "text": "Project starts the 1st of january 2021"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 1st of january 2021",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt6.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 5th of november 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 5th of november 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt7.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts the 5th of november 2018"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts the 5th of november 2018",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt7.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 4,
+        "text": "Project starts 2020-05-29"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2020-05-29",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt8.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 4,
+        "text": "Project starts 2020-05-29"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2020-05-29",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt8.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "[T1] on {def:50%} lasts 5 days"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_TASK) [T1] on {def:50%} lasts 5 days",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt9.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "[T1] on {def:50%} lasts 5 days"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_TASK) [T1] on {def:50%} lasts 5 days",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt9.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts 2024-09-22"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-22",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms0.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts 2024-09-22"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-22",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms0.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 3,
+        "text": "Project starts 2024-09-22"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-22",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms1.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 3,
+        "text": "Project starts 2024-09-22"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-22",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms1.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts 2024-09-22"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-22",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms2.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts 2024-09-22"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-22",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms2.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts 2024-09-19"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-19",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms3.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 2,
+        "text": "Project starts 2024-09-19"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "pending T25: sentence line (SUBJECT_GANTT) Project starts 2024-09-19",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/hms3.puml",
+      "status": "reject"
+    }
+  ],
+  "corpus": "vega",
+  "family": "gantt",
+  "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
+  "totals": {
+    "blocks": 16,
+    "diagram_mismatch": 0,
+    "disagree": 0,
+    "fa": 0,
+    "fr": 15,
+    "oracle_accepted": 15,
+    "raw_fr": 15,
+    "timeout": 0
+  }
+}

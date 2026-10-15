@@ -560,3 +560,133 @@ problem applies to `state X {` as the last body line; the analogous form there i
 `<parts> <ctx>` with `<ctx>: (_NL line?)* (_NL pop_line)?`. The queued `description`
 entry adds `_WS?` before that `_NL`; keep it on the `_NL` branch only.
 - activity3 / test_document top-model assertion → orchestrator made it id-agnostic (T21a commit).
+- activity3 / Lark+W3C `set` treated like `push` (if/else needs two `endif`) → resolved (fix-emit-queue): `set` in a pushed context now ends the block and embeds the target's block (tools/emit/flow.py `CLOSED` forms); tests/emit/test_flow.py `if-else*`.
+- activity3 / Lark+W3C multiline `end` line cannot be indented → resolved (fix-emit-queue): `_WS?` before the end part, trailing blanks from the line wrapper; test_flow `indented-multiline-end`.
+- state / Lark requires the pop line of a context entered without `require_pop` → resolved (fix-emit-queue): an unclosed push is a `TAIL` spine (last line only) instead of the optional-pop superset, so the closer negatives stay rejected and `grp {` + foreign line still fails; `require_pop` pushes keep a mandatory pop; test_flow `grp-*`, `strict-*`.
+- state / Lark multiline `end` line cannot be indented (second failing case) → resolved with the activity3 end-line entry above.
+- state / Lark terminal alternation where a later alternative extends an earlier one → resolved (fix-emit-queue): `prefer_longest` now lifts any alternative that starts with the text of an earlier one in every alternation, nested groups and top level included (tools/emit/lark_regex.py `lift_prefixed`); tests/emit/test_lark_regex.py.
+- description / Lark trailing whitespace after a multiline, bracket or pushing first line → resolved (fix-emit-queue): `_WS?` before the first line's `_NL` for bracket, multiline/end and transition commands; test_flow `trailing-space-*`.
+- timing / Lark set/push into a context without pop as the last line → resolved (fix-emit-queue): blocks are newline-led (`(_NL line?)*`), so an empty block needs no extra line; contexts no `pop` can reach are spine-only; test_flow `mode-last-line`, `orphan-*`. Also: a `set` from `main` continues with the target's root form (rest of the block); `pop` entries in `main` stay dropped (family models shadow them with `reject`, which emitters cannot express).
+- toy_class (tests/emit/fixtures/toy) now sets `require_pop: true` on CommandPackage, since unclosed pushes are accepted otherwise.
+
+## gantt: `JAVA_INT_RANGE` lists its shortest alternative first, so Lark cannot reach 10-digit ints mid-line
+
+Owner: `model/diagrams/common.yaml` (common family). Found by T24 (gantt) fixtures.
+Lark's dynamic lexer takes one `regex.match` per terminal and only retries shorter
+prefixes of it (`.agent-notes/fix-lark.md`), so `(?:[1-9][0-9]{0,8}|1[0-9]{9}|...)`
+yields the 9-digit prefix of `2147483647` and the 10-digit alternatives are never
+tried. At the end of a line the emitter's tail lookahead hides it; mid-line it is a
+Lark false reject (`tools/emit/lark_regex.py` `lift_prefixed` only lifts alternatives
+that start with an earlier one's text). The interpreter is unaffected (fullmatch).
+Longest first keeps the language and fixes Lark:
+```diff
+--- a/model/diagrams/common.yaml
++++ b/model/diagrams/common.yaml
+@@ variables:
+   JAVA_INT_RANGE:
+-    regex: "(?:[1-9][0-9]{0,8}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])"
++    regex: "(?:1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7]|[1-9][0-9]{0,8})"
+```
+Failing cases (jar and interpreter accept, Lark rejects; all pass with the diff in a
+scratch build, and `2147483648` stays rejected):
+- `@startgantt` / `page 2147483647x1` / `@endgantt` (common CommandPage)
+- `@startgantt` / `print between D+2147483647 and D+1` / `@endgantt` (gantt-dates
+  GD_COUNT_OK refs JAVA_INT; tests/fixtures/gantt/pos/print-between.puml line 4)
+
+## gantt: final-state check "a separator or group needs a real task" (non-blocking, contract)
+
+Owner: contract (`model/schema.json`, `docs/grammar-guide.md`, `tools/interp/engine.py`,
+`tools/interp/rules.py`). No corpus case today; pinned by strict-xfail fixtures
+`tests/fixtures/gantt/gap/{separator-only,separator-bare-only,group-only}.puml`.
+Upstream: separators and groups enter the task map, `TimeBoundsData.initMinMax` skips
+them (gantt/data/TimeBoundsData.java:131-142), so with no real task `maxDay` stays null,
+`durationInDays` (:155) throws `NullPointerException: temporal`, `checkFinalError` does
+not catch it (gantt/GanttDiagram.java:172-181) and PSystemBuilder.java:275-280 reports
+the crash at the end of the block. It does not matter whether the task comes before or
+after the separator, and a task created inside a group counts, so a context stack
+cannot express it (a pop restores the frame below, which was fixed at push time).
+Proposal: monotone, order-free diagram flags. Entry keys `gives: <flag>` and
+`needs: <flag>`; at the end of the body the attempt fails at the end line when a matched
+entry `needs` a flag no matched entry `gives`. Gantt would set `needs: real_task` on the
+separator/group heads and `gives: real_task` on CommandGanttArrow2 and (T25) task
+sentences. The same shape closes `.agent-notes/T17.md` (participant-less sequence).
+```diff
+--- a/tools/interp/rules.py
++++ b/tools/interp/rules.py
+@@ class Rule:
+     require_pop: bool = False
+     reject: bool = False
++    gives: str = ""
++    needs: str = ""
+@@ def build_rule(entry: Entry) -> Rule:
+         bool(entry.get("require_pop")),
+         bool(entry.get("reject")),
++        entry.get("gives", ""),
++        entry.get("needs", ""),
+     )
+--- a/tools/interp/engine.py
++++ b/tools/interp/engine.py
+@@ class _Resume:
+     index: int
+     stack: tuple[str, ...]
+     next_rule: int
++    matched: tuple[Rule, ...]  # rules matched before the push, restored on backtrack
+@@ def _run(...)
+-            if i >= len(body):
++            if i >= len(body):
+                 pending = next((f for f in frames if f is not None), None)
+-                if pending is None:
+-                    return None
++                if pending is None:
++                    missing = {r.needs for r in matched} - {r.gives for r in matched} - {""}
++                    return len(body) if missing else None  # fails at the end line
+```
+(`_attempt` must map index `len(body)` to `block.end` for the failure line. `matched` is the list of rules applied so far; `_track` snapshots it into `_Resume` and
+a backtrack truncates it. Emitters ignore both keys; the schema adds them as optional
+strings on entries and in `overrides`.)
+
+## mindmap-wbs: match `SingleLineCommand2(doTrim=false)` commands against the untrimmed line (non-blocking, contract + extractor)
+
+Owner: contract (`model/schema.json`, `docs/grammar-guide.md`, `tools/interp/rules.py`)
+and extractor/translator (`tools/extract`, `tools/translate`). Upstream:
+`SingleLineCommand2(boolean doTrim, ...)` matches `lines.getFirst()` untrimmed when
+`doTrim` is false (command/SingleLineCommand2.java:69-81, :93, :102). At 97a5992 that is
+24 commands (`git grep 'super(false, '`): board CommandBoardPlus, 11 chart commands,
+CommandMindMapOrgmode, CommandMindMapPlus, salt CommandAnything, CommandWBSItemNew,
+CommandWBSItemOld and 7 wire commands. The interpreter always matches `Line.trimmed`
+(tools/interp/rules.py:41), so leading and trailing blanks are invisible.
+Failing cases (strict-xfail fixtures, jar rejects, interpreter accepts):
+* `tests/fixtures/mindmap-wbs/gap/mindmap-indented-plus.puml` (`  ++ b`: `^([+-]+)`
+  fails on the untrimmed line, no command matches);
+* `tests/fixtures/mindmap-wbs/gap/wbs-pseudo-trailing-blank.puml` (`**_ `: the trailing
+  blank matches no item command).
+It is also the prerequisite for any indentation-aware tree check in mindmap/WBS
+(getSmartLevel counts leading blanks, mindmap/MindMapDiagram.java:136-157,
+wbs/WBSDiagram.java:187-208): pdiff FAs cupuri-11-piru303, fogari-75-febu345,
+sipuja-30-deto581, input/WBS-monoline-def-0.puml#3 (reports/classify/mindmap-wbs.yaml).
+Proposal: optional entry key `trim: false` (`single` only; also allowed in `overrides`),
+emitted by the translator for commands whose `doTrim` field is false; emitters may
+ignore it (an approximation each emitter docstring would document).
+```diff
+--- a/tools/interp/rules.py
++++ b/tools/interp/rules.py
+@@ class Rule:
+     require_pop: bool = False
+     reject: bool = False
++    untrimmed: bool = False
+@@ def advance(self, body: list[Line], i: int, deadline: Deadline) -> int | None:
+-        if not deadline.fullmatch(self.start, body[i].trimmed):
++        line = body[i].text if self.untrimmed else body[i].trimmed
++        if not deadline.fullmatch(self.start, line):
+             return None
+@@ def build_rule(entry: Entry) -> Rule:
+         bool(entry.get("require_pop")),
+         bool(entry.get("reject")),
++        entry.get("trim") is False,
+     )
+```
+Schema: `"trim": {"const": false}` on entries and override patches, valid only with
+`kind: single`. Extractor: record `SingleLineCommand2.doTrim` (read from the declaring
+class, see .agent-notes/T02.md). Until it lands, mindmap-wbs keeps these as gaps.
+- gantt / JAVA_INT_RANGE longest-first → applied by the orchestrator (T24 commit).
+- gantt / gives-needs final-state flags → adopted as a contract change (delegated).

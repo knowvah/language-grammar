@@ -1,0 +1,6 @@
+' gantt: CommandSeparator
+' gap: a separator or group without a real task: TimeBoundsData.initMinMax leaves maxDay null and checkFinalError throws (needs diagram-level state)
+@startgantt
+-- Phase one --
+printscale weekly
+@endgantt
