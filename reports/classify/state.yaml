@@ -1,0 +1,77 @@
+# Classifications for the `state` family (T20). Upstream pin 97a5992; `cite` paths are
+# relative to src/main/java/net/sourceforge/plantuml/ unless they start with net/atmp/.
+# FR is 0 on every corpus. The four false accepts (FA) are the same blocks in
+# plantuml-ts and pdiff: link endpoints that fail name resolution in ParserPass TWO,
+# after every state of the block exists. They depend on which group owns a state,
+# which the model cannot know (tests/fixtures/state/gap).
+cases:
+  # Inside ChildMode2, `ChildMode1.A` resolves under the current group
+  # (ParentMode.ChildMode2.ChildMode1.A, net/atmp/CucaDiagram.java:277-286), whose parent
+  # was never created, so "The state ChildMode1.A cannot be used here".
+  plantuml-ts:class/fugedo-34-fice721.puml#0:
+    class: semantic
+    note: "link endpoint ChildMode1.A resolves under the current group, whose parent state does not exist (cross-line, gap/link-unknown-parent)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/command/CommandLinkStateCommon.java:277-278
+  pdiff:dbhum/f_ug/fugedo-34-fice721.puml#0:
+    class: semantic
+    note: "link endpoint ChildMode1.A resolves under the current group, whose parent state does not exist (cross-line, gap/link-unknown-parent)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/command/CommandLinkStateCommon.java:277-278
+  # pUndetected was created inside the concurrent region of Drive; the link at the root
+  # cannot use it (StateDiagram.checkConcurrentStateOk).
+  plantuml-ts:class/xacona-99-peze211.puml#0:
+    class: semantic
+    note: "link endpoint pUndetected belongs to a concurrent region and is used outside it (cross-line, gap/state-reused-in-other-region)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/StateDiagram.java:75-90
+  pdiff:dbhum/x_ac/xacona-99-peze211.puml#0:
+    class: semantic
+    note: "link endpoint pUndetected belongs to a concurrent region and is used outside it (cross-line, gap/state-reused-in-other-region)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/StateDiagram.java:75-90
+  # XA13 is declared (pass ONE) in the second region of XA6; the root-level link on line 2
+  # runs in pass TWO and cannot use it.
+  plantuml-ts:class/zecivu-62-pagu681.puml#0:
+    class: semantic
+    note: "link endpoint XA13 is declared later inside a concurrent region; links run in pass TWO and cannot use it at the root (cross-line)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/StateDiagram.java:75-90
+  pdiff:dbhum/z_ec/zecivu-62-pagu681.puml#0:
+    class: semantic
+    note: "link endpoint XA13 is declared later inside a concurrent region; links run in pass TWO and cannot use it at the root (cross-line)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/StateDiagram.java:75-90
+  # c belongs to the region of b; `c -> d` runs in S's region.
+  plantuml-ts:sequence/cagego-53-vemo516.puml#0:
+    class: semantic
+    note: "link endpoint c belongs to another concurrent region (cross-line, gap/state-reused-in-other-region)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/StateDiagram.java:75-90
+  pdiff:dbhum/c_ag/cagego-53-vemo516.puml#0:
+    class: semantic
+    note: "link endpoint c belongs to another concurrent region (cross-line, gap/state-reused-in-other-region)"
+    cite: src/main/java/net/sourceforge/plantuml/statediagram/StateDiagram.java:75-90
+  # Lark, plantuml-ts sample of 100 blocks: 4 disagreements (Lark rejects, interpreter and
+  # jar accept), 0 timeouts. All are emitter approximations, queued in
+  # reports/queued-shared-changes.md ("state: ..."); vega --lark all has none.
+  plantuml-ts:state/suzope-95-suvu383.puml#0:
+    class: bug
+    note: "Lark only: the block ends inside `state s1 {`; Lark requires the pop line of every pushed context, upstream accepts an open group (no require_pop)"
+  plantuml-ts:state/gizati-67-kora187.puml#0:
+    class: bug
+    note: "Lark only: the block ends inside `state s1 {`; Lark requires the pop line of every pushed context, upstream accepts an open group (no require_pop)"
+  plantuml-ts:class/tumaba-64-tosu281.puml#0:
+    class: bug
+    note: "Lark only: an indented `end note` after `note on link` inside a composite; Lark matches a multiline end without leading whitespace, the interpreter and upstream compare the trimmed line"
+  plantuml-ts:class/mefici-97-tudu030.puml#0:
+    class: bug
+    note: "Lark only (also with the pre-T20 grammar): `Stopwatch[H] : left`; the ENT terminal's first alternative takes `Stopwatch` and the dynamic lexer only retries shorter matches, so `Stopwatch[H]` is unreachable"
+  # `!theme plain` expands to about 160 skinparam/style lines. With the pre-T20 grammar
+  # these blocks already took 15-17 s (over the 10 s budget); with the full tree they
+  # time out, and they parse and agree with the interpreter given 60 s.
+  plantuml-ts:class/somuke-94-buzi673.puml#0:
+    class: bug
+    note: "Lark timeout only: `!theme plain` expansion (~160 lines); 15 s before T20, parses and agrees given 60 s"
+  plantuml-ts:class/sugico-41-vase848.puml#0:
+    class: bug
+    note: "Lark timeout only: `!theme plain` expansion (~160 lines); 17 s before T20, parses and agrees given 60 s"
+exclusions:
+  CommandEndState: >-
+    modeled by the head entries StateEndAtRoot (main, reject), StateEndConcurrentRoot
+    (main_concurrent, reject) and StateEnd (state_body, pop) in model/diagrams/state.yaml,
+    which cite StateDiagram.endGroup and CommandEndState.java:61-64/:79-84; the generated
+    entry is removed because one entry cannot act differently per context

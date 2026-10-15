@@ -152,8 +152,13 @@ def hand_written_entries() -> list[dict[str, Any]]:
     return inserted + [e for es in doc["contexts"].values() for e in es]
 
 
-def verdict(block: str) -> dict[str, Any]:
-    return dict(accepts(style_models(), block))
+# Budget for the long-block tests: they guard against super-linear scans (seconds vs
+# minutes), not wall time; the 10 s default flakes when several agents share the CPU.
+LONG_BLOCK_TIMEOUT_S = 60.0
+
+
+def verdict(block: str, timeout_s: float = 10.0) -> dict[str, Any]:
+    return dict(accepts(style_models(), block, timeout_s=timeout_s))
 
 
 def block(*body: str) -> str:
@@ -266,12 +271,14 @@ def test_rejection_line_is_after_the_style_line() -> None:
 
 def test_long_body_is_accepted_without_timeout() -> None:
     body = ["root {", *(["LineColor red // c"] * LONG_BODY_LINES), "}"]
-    result = verdict(block("<style>", *body, "</style>", "class Foo"))
+    result = verdict(block("<style>", *body, "</style>", "class Foo"), LONG_BLOCK_TIMEOUT_S)
     assert (result["accepted"], result["status"]) == (True, "ok")
 
 
 def test_unterminated_block_is_rejected_without_timeout() -> None:
-    result = verdict(block("<style>", "root {", *(["class A"] * TRAILING_LINES)))
+    result = verdict(
+        block("<style>", "root {", *(["class A"] * TRAILING_LINES)), LONG_BLOCK_TIMEOUT_S
+    )
     assert (result["status"], result["first_failure"]["line"]) == ("reject", 4)
 
 
