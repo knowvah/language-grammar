@@ -1,0 +1,21 @@
+# Classifications for the `salt` family (T28). Upstream pin 97a5992; `cite` paths are
+# relative to the upstream repository root.
+#
+# FR and FA are 0 on every corpus (vega 7 blocks, pdiff 51, plantuml-ts 0), and Lark agrees
+# with the interpreter on the vega and pdiff slices (`--lark all`: 0 disagreements, 0
+# timeouts), so there is nothing to classify. Every PSystemSaltFactory command is modeled
+# (coverage 41/41), so there are no exclusions.
+#
+# Known differences outside the corpora, each pinned by a fixture:
+# * gap/title-line-separator: generated common rules translate Java `.` as Python `.`,
+#   which also matches U+0085/U+2028/U+2029 (src/main/java/net/sourceforge/plantuml/regex/
+#   RegexComposed.java:112-118); queued in reports/queued-shared-changes.md.
+# * Lark accepts every pos fixture, 21 of the 22 neg fixtures (all but uml-salt-grid) and
+#   the gap fixture: the same 22 blocks as a grammar built without
+#   model/diagrams/salt.yaml, so the salt model adds no Lark disagreement.
+#   CommandAnything is a catch-all and a CFG has no ordered choice, so lines upstream
+#   hands to an earlier command that then fails (`scale 0`, `page 0x1`, a bad sprite) or
+#   that a dropped `reject` / zero-width guard refuses (first data line `salt`, interior
+#   U+2028) still derive as data; `@startsalt` with an empty body and `@startuml` +
+#   `salt` are document/uml-level. The interpreter is exact on all of them.
+cases: {}
