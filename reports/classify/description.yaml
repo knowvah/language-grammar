@@ -1,0 +1,143 @@
+# Classifications for the `description` family (T19: DescriptionDiagramFactory, usecase,
+# component, deployment and archimate diagrams). Upstream pin 97a5992. Every residual
+# case is a false accept caused by an execution check on entity state (an element that
+# already exists with another type or as a group, a note on an unknown entity, a note
+# code used twice) or on a runtime resource (the internal sprite table). The
+# interpreter keeps no entity table, so these are semantic gaps; the message in each
+# note is the jar's (`java -jar <stock jar> -syntax`). The pdiff cases are copies of the
+# plantuml-ts ones except dagugu.
+#
+# Lark (tools/validate/lark_parse.py, grammar built from the T19 model tree): vega slice
+# 10 blocks, 0 disagreements, 0 timeouts. plantuml-ts 200-block sample: 3 disagreements
+# (classified below: two are the emitter's missing `_WS?` after a multiline or pushing
+# first line, queued; one is an unclosed group, which Lark cannot accept by contract)
+# and 16 timeouts at the default budget. The pre-T19 grammar and models time out on 15
+# blocks of the same sample under the same machine load (9 in common, 6 only before,
+# 7 only after), so the timeouts are wall-clock artifacts of large stdlib/theme bodies
+# (C4, OSA, AWS, `!theme`) at baseline parity, not description structure.
+cases:
+  # plantuml-ts
+  class/gikaju-64-bari602.puml#0:
+    class: semantic
+    note: "C4 Rel() links someContainer before `rectangle ... as someContainer` declares it: \"This element (someContainer) is already defined\" (the link made it STILL_UNKNOWN)"
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:313-314
+  class/mucajo-31-lifo004.puml#0:
+    class: semantic
+    note: "Provider is a group after `component [Provider] {`; the later `[Provider]` fails: \"This element (Provider) is already defined\""
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:304-305
+  class/nixuje-20-bobu879.puml#0:
+    class: semantic
+    note: "`sprite ... jar:archimate/strategy-value-stream` names no internal sprite: \"No such internal sprite\" (runtime resource table)"
+    cite: src/main/java/net/sourceforge/plantuml/command/CommandSpriteFile.java:108-112
+  class/xexuza-21-kifa053.puml#0:
+    class: semantic
+    note: "`note left of compo` before compo exists: \"Not known: compo\""
+    cite: src/main/java/net/sourceforge/plantuml/command/note/CommandFactoryNoteOnEntity.java:304-307
+  component/sabafe-32-viju467.puml#0:
+    class: semantic
+    note: "a second `note as _n` (in another package) reuses the existing note code: \"Note already created: _n\""
+    cite: src/main/java/net/sourceforge/plantuml/command/note/CommandFactoryNote.java:194-195
+  usecase/nekote-79-pori818.puml#0:
+    class: semantic
+    note: "`usecase sameid` then `rectangle sameid`: \"This element (sameid) is already defined\""
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:313-314
+  # plantuml-ts, Lark only (interpreter and jar agree)
+  class/refabu-21-jesu466.puml#0:
+    class: bug
+    note: "Lark disagreement only: `title ` (trailing blank) then `end title`; the Lark emitter puts no `_WS?` before `_NL` after a multiline first line (queued in reports/queued-shared-changes.md). Hidden before T19 because the bare word `title` also parsed as an element"
+  component/robiga-73-tedi466.puml#0:
+    class: bug
+    note: "Lark disagreement only: `package \"DataONE\" {` is never closed. Upstream never checks open groups (net/atmp/CucaDiagram.java:367-374, no final check), the interpreter mirrors that, and Lark requires the pop line of every pushed context (docs/grammar-guide.md, require_pop)"
+  sequence/xozabi-42-pixa842.puml#0:
+    class: bug
+    note: "Lark disagreement only: `<style> ` with a trailing blank fails in Lark with or without T19 (same emitter gap as refabu)"
+  # plantuml-ts, Lark timeouts only (interpreter and jar agree; see header)
+  class/fajira-11-xada239.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  class/foraba-98-sagi735.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  class/jecici-56-bimu826.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  class/josimu-04-silu988.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  class/ropexu-72-jecu171.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  class/xigele-78-sija109.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  component/reroca-56-safi108.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  sequence/taneno-85-fatu449.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  sequence/xusuxe-62-guba767.puml#0:
+    class: bug
+    note: "Lark timeout only; times out with the pre-T19 grammar too"
+  class/cukafa-49-fona812.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  class/doculo-43-rofe573.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  class/dofixa-09-soji615.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  class/gurive-62-ricu497.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  class/toxeto-79-kile546.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  class/vevali-53-jiri075.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  sequence/revezi-19-kuki251.puml#0:
+    class: bug
+    note: "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar"
+  # pdiff
+  pdiff:dbhum/d_ag/dagugu-60-zuli109.puml#0:
+    class: semantic
+    note: "`folder A` inside the group A names the group itself: \"This element (A) is already defined\""
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:304-305
+  pdiff:dbhum/g_ik/gikaju-64-bari602.puml#0:
+    class: semantic
+    note: "copy of plantuml-ts class/gikaju-64-bari602: \"This element (someContainer) is already defined\""
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:313-314
+  pdiff:dbhum/m_uc/mucajo-31-lifo004.puml#0:
+    class: semantic
+    note: "copy of plantuml-ts class/mucajo-31-lifo004: \"This element (Provider) is already defined\""
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:304-305
+  pdiff:dbhum/n_ek/nekote-79-pori818.puml#0:
+    class: semantic
+    note: "copy of plantuml-ts usecase/nekote-79-pori818: \"This element (sameid) is already defined\""
+    cite: src/main/java/net/sourceforge/plantuml/descdiagram/command/CommandCreateElementFull.java:313-314
+  pdiff:dbhum/n_ix/nixuje-20-bobu879.puml#0:
+    class: semantic
+    note: "copy of plantuml-ts class/nixuje-20-bobu879: \"No such internal sprite\""
+    cite: src/main/java/net/sourceforge/plantuml/command/CommandSpriteFile.java:108-112
+  pdiff:dbhum/s_ab/sabafe-32-viju467.puml#0:
+    class: semantic
+    note: "copy of plantuml-ts component/sabafe-32-viju467: \"Note already created: _n\""
+    cite: src/main/java/net/sourceforge/plantuml/command/note/CommandFactoryNote.java:194-195
+  pdiff:dbhum/x_ex/xexuza-21-kifa053.puml#0:
+    class: semantic
+    note: "copy of plantuml-ts class/xexuza-21-kifa053: \"Not known: compo\""
+    cite: src/main/java/net/sourceforge/plantuml/command/note/CommandFactoryNoteOnEntity.java:304-307
+
+exclusions:
+  CommandTogether: >-
+    modeled by the head entries RootTogether (main, desc_together: push desc_together) and
+    GroupTogether (desc_group: push desc_group); the generated rule is removed because a
+    Together leaves the current group unchanged (net/atmp/CucaDiagram.java:339-342), so
+    its push target depends on the state.
+  CommandEndPackage: >-
+    modeled by the head entries RootEnd (main: set desc_orphan) and GroupEnd
+    (desc_together, desc_group: pop); in desc_orphan GroupStackEmpty rejects `}`
+    (command/CommandEndPackage.java:67-71). The generated rule is removed so that `}`
+    has one derivation per state.
