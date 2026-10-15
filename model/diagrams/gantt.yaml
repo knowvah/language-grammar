@@ -29,12 +29,13 @@
 # preprocessing). The body is a context: the first line may not be `end note`.
 # `require_pop`: an unterminated note backtracks to `note bottom`, which nothing else takes.
 #
-# Final check (gap). A diagram whose only task-like entries are separators or groups
+# Final check. A diagram whose only task-like entries are separators or groups
 # fails at the end: TimeBoundsData.initMinMax skips them and leaves maxDay null
 # (gantt/data/TimeBoundsData.java:131-142), durationInDays (:155) throws a
 # NullPointerException that checkFinalError does not catch (GanttDiagram.java:172-181),
-# and PSystemBuilder.java:275-280 reports the crash. A context stack cannot carry "a real
-# task exists" across a pop, so this stays a gap (tests/fixtures/gantt/gap/*-only.puml).
+# and PSystemBuilder.java:275-280 reports the crash. Order does not matter, so it is a
+# diagram flag: separators and group starts `needs: real_task`; `[A] -> [B]` and task
+# sentences (gantt-sentences) `gives: real_task`.
 #
 # T25 hook. `gantt-sentences` (layer: shared) is added to `include` (one line). It places
 # the sentences with `insert_before: {CommandGanttArrow: [...]}` (their upstream position,
@@ -46,7 +47,7 @@ id: gantt
 layer: diagram
 diagram: GANTT
 factory: GanttDiagramFactory
-include: [gen-gantt-diagram, common, gantt-errors]
+include: [gen-gantt-diagram, common, gantt-errors, gantt-sentences]
 
 variables:
   # Generated shapes of the commands that get head entries (copies, pinned by tests).
@@ -123,6 +124,10 @@ overrides:
   CommandGroupEnd: {remove: true}
   # CommandMultilines2 completion (command/CommandMultilines2.java:79-110) as a context.
   CommandNoteBottom: {kind: single, end: null, push: gantt_note_first, require_pop: true}
+  # Final check (see header): separators and groups need a real task, which `[A] -> [B]`
+  # and task sentences give.
+  CommandSeparator: {needs: real_task}
+  CommandGanttArrow2: {gives: real_task}
 
 contexts:
   main:
@@ -146,6 +151,7 @@ contexts:
       kind: single
       parts: {ref: G_ARROW2_SHAPE}
       set: gantt_tasks
+      gives: real_task
     - command: GanttColorWithoutTask
       provenance:
         class: net.sourceforge.plantuml.gantt.GanttDiagram
@@ -166,6 +172,7 @@ contexts:
       kind: single
       parts: {ref: G_SEPARATOR_SHAPE}
       set: gantt_tasks
+      needs: real_task
     - command: GanttFirstGroup
       provenance: &group_start
         class: net.sourceforge.plantuml.gantt.GanttDiagram
@@ -176,6 +183,7 @@ contexts:
       kind: single
       parts: {ref: G_GROUP_START_SHAPE}
       set: gantt_group_1
+      needs: real_task
     - command: GanttGroupEndWithoutGroup
       provenance: &group_end
         class: net.sourceforge.plantuml.gantt.GanttDiagram
@@ -198,15 +206,15 @@ contexts:
       parts: {ref: G_NOTE_SHAPE}
     - include: gen-gantt-diagram#main
   gantt_tasks:
-    - {command: GanttGroupAtRoot, provenance: *group_start, kind: single, parts: {ref: G_GROUP_START_SHAPE}, push: gantt_group}
+    - {command: GanttGroupAtRoot, provenance: *group_start, kind: single, parts: {ref: G_GROUP_START_SHAPE}, push: gantt_group, needs: real_task}
     - {command: GanttGroupEndAtRoot, provenance: *group_end, kind: single, reject: true, parts: {ref: G_GROUP_END_SHAPE}}
     - include: gen-gantt-diagram#main
   gantt_group_1:
-    - {command: GanttGroupInFirstGroup, provenance: *group_start, kind: single, parts: {ref: G_GROUP_START_SHAPE}, push: gantt_group}
+    - {command: GanttGroupInFirstGroup, provenance: *group_start, kind: single, parts: {ref: G_GROUP_START_SHAPE}, push: gantt_group, needs: real_task}
     - {command: GanttFirstGroupEnd, provenance: *group_end, kind: single, parts: {ref: G_GROUP_END_SHAPE}, set: gantt_tasks}
     - include: gen-gantt-diagram#main
   gantt_group:
-    - {command: GanttGroupInGroup, provenance: *group_start, kind: single, parts: {ref: G_GROUP_START_SHAPE}, push: gantt_group}
+    - {command: GanttGroupInGroup, provenance: *group_start, kind: single, parts: {ref: G_GROUP_START_SHAPE}, push: gantt_group, needs: real_task}
     - {command: GanttGroupEnd, provenance: *group_end, kind: single, parts: {ref: G_GROUP_END_SHAPE}, pop: true}
     - include: gen-gantt-diagram#main
   gantt_note_first:

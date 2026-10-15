@@ -767,3 +767,30 @@ since `\u` escapes are a load error):
 ```
 Then regenerate `model/generated/`. Emitters already line-bound every terminal, so they are
 unaffected; the TextMate/W3C regex printers must accept the literal characters.
+
+## json: do not glue `{{ ... }}` units in joins of non-command factories (non-blocking, interpreter)
+
+`tools/interp/scan.py` `scan_join` (and `scan_multiline`) step through units built by
+`unit_end`, which glues a `{{` line and everything up to its `}}` into one unit
+(PSystemCommandFactory.java:288-307). That rule belongs to command factories only.
+JsonDiagramFactory/StyleExtractor (jsondiagram/StyleExtractor.java:63-101) read plain
+lines, so a `{{` line inside a `<style>` region of a `@startjson` block makes the
+`JsonStyleError` join (model/diagrams/json.yaml) unable to stop at `</style>`, and the
+interpreter accepts a region the jar rejects. Failing case (strict xfail):
+tests/fixtures/json/gap/style-error-with-embedded-open.puml (jar: IllegalStateException
+COLON, rejected; interpreter: accepted). No corpus block is affected.
+Proposed diff: let a rule skip the gluing when its model's factory is not a
+`PSystemCommandFactory` subclass (the 24 factories whose `extracted/*.json` has the
+`opaque-no-regex-field` unreachable entry), e.g.
+```diff
+-def scan_join(start, max_lines, body, i, deadline):
++def scan_join(start, max_lines, body, i, deadline, glue_units=True):
+     j = i
+     for _ in range(max_lines + 1):
+         if j >= len(body):
+             return None
+-        j = unit_end(body, j)
++        j = unit_end(body, j) if glue_units else j + 1
+```
+with `Rule.advance` passing `glue_units=False` for rules of such models (the resolver
+knows each diagram model's `factory`).

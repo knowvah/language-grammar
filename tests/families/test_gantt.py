@@ -49,8 +49,21 @@ UPSTREAM_PREFIX = "src/main/java/net/sourceforge/plantuml/"
 # GanttDiagramFactory.java:89-91: the sentences, then the first gantt command.
 FIRST_GANTT_COMMAND = "CommandGanttArrow"
 REMOVED = ("CommandGroupStart", "CommandGroupEnd")
-HEADER = re.compile(r"^' (?P<key>gantt|gap): (?P<value>.+)$")
+HEADER = re.compile(r"^' (?P<key>gantt|gap|jar): (?P<value>.+)$")
 JAVA_INT_MAX = 2**31 - 1
+SENTENCES_ID = "gantt-sentences"
+# T25 heads (gantt-sentences inserts them before the T24 heads of each context).
+SENTENCE_HEADS = {
+    MAIN: [
+        "GanttItWithoutTask",
+        "GanttFirstTaskSentenceInvalid",
+        "GanttFirstTaskSentenceNeedsStart",
+        "GanttFirstTaskSentence",
+    ],
+    TASKS: ["GanttProjectStartsAfterTask"],
+    GROUP_1: ["GanttProjectStartsAfterTask"],
+    GROUP: ["GanttProjectStartsAfterTask"],
+}
 
 # head id -> (generated counterpart, action key, action value, sample line)
 HEADS: dict[str, dict[str, tuple[str, str, Any, str]]] = {
@@ -118,7 +131,7 @@ def entry(model: ResolvedModel, context: str, command: str) -> dict[str, Any]:
 
 
 def spliced(gantt: ResolvedModel, context: str) -> list[dict[str, Any]]:
-    return gantt.contexts[context][len(HEADS[context]) :]
+    return gantt.contexts[context][len(SENTENCE_HEADS[context]) + len(HEADS[context]) :]
 
 
 # --- the model ------------------------------------------------------------------------
@@ -129,7 +142,7 @@ def test_gantt_is_the_top_model_of_its_factory(
 ) -> None:
     raw = raw_models[GANTT_ID]
     assert (raw.layer, raw.diagram, raw.factory) == ("diagram", DIAGRAM, FACTORY)
-    assert raw.include[:3] == [GENERATED_ID, COMMON_ID, ERRORS_ID]
+    assert raw.include == [GENERATED_ID, COMMON_ID, ERRORS_ID, SENTENCES_ID]
     assert top_models(models)[FACTORY] == GANTT_ID
     for mid in (ERRORS_ID, DATES_ID):
         assert (raw_models[mid].layer, raw_models[mid].diagram) == ("shared", None)
@@ -139,8 +152,10 @@ def test_gantt_is_the_top_model_of_its_factory(
 def test_body_context_is_heads_then_the_generated_order(
     gantt: ResolvedModel, models: ResolvedModels, context: str
 ) -> None:
-    got = gantt.contexts[context]
-    assert commands(got[: len(HEADS[context])]) == list(HEADS[context])
+    got = commands(gantt.contexts[context])
+    first = len(SENTENCE_HEADS[context])
+    assert got[:first] == SENTENCE_HEADS[context]
+    assert got[first : first + len(HEADS[context])] == list(HEADS[context])
     wanted = [c for c in commands(generated(models)) if c not in REMOVED]
     rest = commands(spliced(gantt, context))
     assert [c for c in rest if c in set(wanted)] == wanted
@@ -462,3 +477,221 @@ def test_fixture_verdicts_equal_the_oracle() -> None:
         assert block["accepted"] is (path.parent.name == POS), rel(path)
         if block["accepted"]:
             assert block["diagram_type"] == DIAGRAM, rel(path)
+
+
+# --- sentences (T25: gantt-sentences*) ------------------------------------------------
+
+NGC = "net.sourceforge.plantuml.gantt.command.NaturalGanttCommand"
+# GanttDiagramFactory.java:112-122, in registration order; True = has an Invalid reject.
+SUBJECTS = {
+    "Gantt": True, "Today": True, "Task": True, "Resource": True, "DaysAsDates": True,
+    "DayOfWeek": False, "DayAsDate": True, "Separator": True, "WorkingHours": False,
+}  # fmt: skip
+SENTENCE_FIXTURES = FIXTURES / "sentences"
+HEAD_SAMPLES = ["it lasts 2 days", "[A] lasts 5 days", "Project starts 2020-01-01"]
+
+
+def sentence_ids() -> list[str]:
+    out = []
+    for name, invalid in SUBJECTS.items():
+        out += [f"NaturalGantt{name}Invalid"] * invalid
+        out += ["NaturalGanttTaskNeedsStart"] * (name == "Task")
+        out += [f"NaturalGantt{name}", f"NaturalGantt{name}Unmatched"]
+    return out
+
+
+@pytest.mark.parametrize("context", BODY_CONTEXTS)
+def test_sentences_precede_the_first_gantt_command(gantt: ResolvedModel, context: str) -> None:
+    rest = commands(spliced(gantt, context))
+    wanted = sentence_ids()
+    end = rest.index(FIRST_GANTT_COMMAND)
+    assert rest[end - len(wanted) : end] == wanted
+    for item in spliced(gantt, context)[end - len(wanted) : end]:
+        assert item.get("reject", False) is not (
+            item["command"]
+            in [f"NaturalGantt{n}" for n in SUBJECTS] + ["NaturalGanttTaskNeedsStart"]
+        )
+
+
+def test_each_sentence_command_has_an_accept_and_an_unmatched_rule(gantt: ResolvedModel) -> None:
+    cited = [e for e in spliced(gantt, TASKS) if e["provenance"]["class"] == NGC]
+    assert len(cited) == 2 * len(SUBJECTS)
+
+
+def test_sentence_heads_carry_their_state(gantt: ResolvedModel) -> None:
+    assert entry(gantt, MAIN, "GanttFirstTaskSentence")["set"] == TASKS
+    assert entry(gantt, MAIN, "GanttItWithoutTask")["reject"] is True
+    for context in (TASKS, GROUP_1, GROUP):
+        assert entry(gantt, context, "GanttProjectStartsAfterTask")["reject"] is True
+
+
+@pytest.mark.parametrize("context", BODY_CONTEXTS)
+def test_no_earlier_command_takes_a_sentence_head_line(gantt: ResolvedModel, context: str) -> None:
+    rest = spliced(gantt, context)
+    earlier = rest[: commands(rest).index(sentence_ids()[0])]
+    for sample in HEAD_SAMPLES:
+        assert not [e["command"] for e in earlier if compile_part(e["parts"]).fullmatch(sample)]
+
+
+def bad(models: ResolvedModels, name: str, text: str) -> bool:
+    return compile_part(models["gantt-sentences-bad"].variables[name]).fullmatch(text) is not None
+
+
+def test_bad_number_agrees_with_parse_int(models: ResolvedModels) -> None:
+    rng = random.Random(27)
+    numbers = [JAVA_INT_MAX, JAVA_INT_MAX + 1, 0] + [rng.randint(0, 10**12) for _ in range(2000)]
+    for n in numbers:
+        for text in (str(n), f"00{n}"):
+            assert bad(models, "GB_BAD_NUM", text) is (n > JAVA_INT_MAX), text
+    assert bad(models, "GB_BAD_NUM", "1_2") and bad(models, "GB_BAD_NUM", "_")
+
+
+def test_not_leap_and_bad_dates_agree_with_local_date(models: ResolvedModels) -> None:
+    for year in range(0, 10000, 7):
+        assert bad(models, "GB_YEAR_NOT_LEAP", str(year)) is not is_leap(year), year
+    for y, m, d in date_samples(28):
+        text = f"{y}-{m:02}-{d:02}"
+        assert bad(models, "GB_DATE_B_BAD", text) is not is_valid(y, m, d), text
+    assert bad(models, "GB_DATE_B_BAD", "2020-1_-01")
+
+
+def resource_ok(content: str) -> bool:
+    """GanttDiagram.affectResource (GanttDiagram.java:378-393) on one `{...}` text."""
+    text = content.strip(" \t")
+    if not text:
+        return True
+    found = re.search(r"([^:]+)(:([0-9]+))?", text)
+    return found is not None and (found[3] is None or 0 < int(found[3]) <= JAVA_INT_MAX)
+
+
+def test_bad_resource_agrees_with_affect_resource(models: ResolvedModels) -> None:
+    rng = random.Random(29)
+    for _ in range(3000):
+        content = "".join(rng.choice(" ::0079R") for _ in range(rng.randint(1, 6)))
+        assert bad(models, "GB_RESOURCE_BAD", f"{{{content}}}") is not resource_ok(content), content
+    assert bad(models, "GB_RESOURCE_BAD", "{R:99999999999}")
+
+
+def sentence_fixtures(group: str) -> list[Path]:
+    return sorted((SENTENCE_FIXTURES / group).glob("*.puml"))
+
+
+def sentence_rel(path: Path) -> str:
+    return path.relative_to(SENTENCE_FIXTURES).as_posix()
+
+
+def jar_accepts(path: Path) -> bool:
+    if path.parent.name in (POS, NEG):
+        return path.parent.name == POS
+    return header(path)["jar"] == "accepted"
+
+
+def sentence_params() -> list[Any]:
+    out = [
+        pytest.param(p, id=sentence_rel(p)) for p in sentence_fixtures(POS) + sentence_fixtures(NEG)
+    ]
+    for p in sentence_fixtures(GAP):
+        mark = pytest.mark.xfail(strict=True, reason=header(p)["gap"])
+        out.append(pytest.param(p, id=sentence_rel(p), marks=mark))
+    return out
+
+
+@pytest.mark.parametrize("path", sentence_params())
+def test_sentence_fixture_verdict(models: ResolvedModels, path: Path) -> None:
+    verdict = restricted(models, path)
+    assert verdict["accepted"] is jar_accepts(path), verdict["first_failure"]
+
+
+@pytest.mark.parametrize("group", [POS, NEG])
+def test_every_subject_has_a_sentence_fixture(group: str) -> None:
+    named = {c for p in sentence_fixtures(group) for c in fixture_commands(p)}
+    assert {n for n in SUBJECTS if [c for c in named if c.startswith(f"NaturalGantt{n}")]} == set(
+        SUBJECTS
+    )
+
+
+@pytest.mark.corpus
+def test_sentence_fixture_verdicts_equal_the_oracle() -> None:
+    from tools.validate.oracle import oracle_verdicts
+
+    paths = [p for g in (POS, NEG, GAP) for p in sentence_fixtures(g)]
+    verdicts = oracle_verdicts(paths)
+    for path in paths:
+        (block,) = verdicts[str(path)]
+        assert block["accepted"] is jar_accepts(path), sentence_rel(path)
+
+
+# --- final check: separators and groups need a real task (diagram flags) -------------
+
+NEEDS = {"CommandSeparator", "GanttFirstTaskBySeparator", "GanttFirstGroup", "GanttGroupAtRoot",
+         "GanttGroupInFirstGroup", "GanttGroupInGroup"}  # fmt: skip
+GIVES = {
+    "CommandGanttArrow2",
+    "GanttFirstTaskByArrow",
+    "NaturalGanttTask",
+    "GanttFirstTaskSentence",
+    "NaturalGanttTaskNeedsStart",
+    "GanttFirstTaskSentenceNeedsStart",
+}
+NEEDS_START = {"NaturalGanttTaskNeedsStart", "GanttFirstTaskSentenceNeedsStart"}
+
+
+@pytest.mark.parametrize("context", BODY_CONTEXTS)
+def test_real_task_flag(gantt: ResolvedModel, context: str) -> None:
+    entries = gantt.contexts[context]
+    assert {e["command"] for e in entries if e.get("needs") == "real_task"} <= NEEDS
+    assert {e["command"] for e in entries if e.get("gives") == "real_task"} <= GIVES
+    for e in entries:
+        if e["command"] in NEEDS | GIVES:
+            assert e.get("needs" if e["command"] in NEEDS else "gives") == "real_task", e["command"]
+
+
+@pytest.mark.parametrize("context", BODY_CONTEXTS)
+def test_project_start_flag(gantt: ResolvedModel, context: str) -> None:
+    entries = gantt.contexts[context]
+    assert {e["command"] for e in entries if e.get("gives") == "project_start"} == {
+        "NaturalGanttGantt"
+    }
+    needing = {e["command"] for e in entries if e.get("needs") == "project_start"}
+    assert needing == NEEDS_START & set(commands(entries))
+    assert all(e.get("emit") is False for e in entries if e["command"] in needing)
+
+
+@pytest.mark.parametrize(
+    ("line", "needs"),
+    [
+        ("[A] starts 2020-01-03", True),
+        ("[A] lasts 2 days and ends the 3rd of jan 2020", True),
+        ("[A] starts 2020-01-03 10:00 and is colored in red", True),
+        ("[A] starts D+3", False),
+        ("[A] starts at [B]'s end", False),
+        ("[A] happens 2020-01-03", False),
+        ("[A] starts 2020-01-03 10:00 and foo", False),
+        ("[B] starts 20 days after [A]'s end and lasts 3 days", False),
+        ("[B] starts  2 days after [A]'s end", False),
+        ("[A] starts   D+3", False),
+        ("[A] starts on the 2020-01-03", True),
+    ],
+)
+def test_needs_start_shape(gantt: ResolvedModel, line: str, needs: bool) -> None:
+    rule = compile_part(entry(gantt, TASKS, "NaturalGanttTaskNeedsStart")["parts"])
+    assert (rule.fullmatch(line) is not None) is needs
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "at [A]'s end", "with [A]'s start", "after [A]'s end", "2 days after [A]'s end",
+        "3 working weeks before [B]'s start", "1 day and 2 weeks after [A]'s end", "  [A]'s end",
+        "the 3 days after start", "d+5", "on 12 days after start", "2020-01-01", "20 days after",
+        "at [A] end", "3 days before start",
+    ],
+)  # fmt: skip
+def test_not_before_or_relative_is_the_check_shapes(models: ResolvedModels, text: str) -> None:
+    phrases = models["gantt-sentences-phrases"].variables
+    lang = models["gantt-lang"].variables
+    before = compile_part(lang["COMPLEMENT_BEFORE_OR_AFTER_OR_AT_TASK_START_OR_END"])
+    relative = compile_part({"seq": [phrases["GS_IGN_2"], lang["COMPLEMENT_DATE_ONLY_RELATIVE"]]})
+    checks = any(p.match(text.lstrip(" ")) for p in (before, relative))
+    guard = compile_part(phrases["GS_NOT_BEFORE_OR_RELATIVE"])
+    assert (guard.match(text) is None) is checks, text

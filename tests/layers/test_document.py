@@ -178,9 +178,15 @@ def test_every_opaque_extracted_factory_has_an_embedded_model(models: ResolvedMo
     factories = opaque_factories()
     assert len(factories) == 24
     tops = top_models(models)
-    assert {f: tops[f].startswith(EMBEDDED_PREFIX) for f in factories} == dict.fromkeys(
-        factories, True
-    )
+
+    def embedded_based(mid: str) -> bool:
+        # The embedded model is the top, or a family model that includes it is.
+        top = models[mid]
+        return mid.startswith(EMBEDDED_PREFIX) or any(
+            inc.startswith(EMBEDDED_PREFIX) for inc in top.includes
+        )
+
+    assert {f: embedded_based(tops[f]) for f in factories} == dict.fromkeys(factories, True)
 
 
 def rule(model: ResolvedModel, context: str, command: str) -> dict[str, Any]:
