@@ -271,3 +271,66 @@ Failing today:
 - test_join_entries_never_match_a_single_line[CommandStyleMultilinesCSSReject]
 
 - class / test_style reads only `main` → applied by the orchestrator with the T18 commit.
+
+## sequence: emitters must emit only the top model of each factory (blocking for every family's emitter parity)
+
+`emit_lark`, `emit_textmate` (`_by_keyword`) and `emit_w3c_with_lossiness` emit every
+`layer: diagram` model. A family model replaces its generated base in dispatch
+(docs/grammar-guide.md, "Diagram dispatch"), but the base stays in the emitted union, so
+none of a family's narrowing or `remove` reaches the grammars: with `sequence` in place the
+Lark grammar has two SEQUENCE bodies and still accepts `end` at top level, `note accross`,
+`autonumber 99999999999`, `A o- B` through the unrefined `gen-sequence-diagram` body. Non-top
+diagram models today: `gen-class-diagram`, `gen-psystem-ditaa`, `gen-sequence-diagram`
+(each family task adds one). Validated by calling `emit_lark` on the resolved dict filtered
+to top models: the sequence negatives above are then rejected by the sequence body (the
+remaining Lark accepts on tests/fixtures/sequence/neg are DESCRIPTION over-acceptance, the
+lenient tails, dropped rejects, and the newline issue below). Proposed diff (same filter in
+the three emitters):
+
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def emit_lark(resolved: ResolvedModels) -> str:
+     names = _Names()
++    tops = set(top_models(resolved).values())
+     diagrams = [
+         _Diagram(m, names)
+         for _, m in sorted(resolved.items())
+-        if m.layer == DIAGRAM_LAYER and m.diagram
++        if m.layer == DIAGRAM_LAYER and m.diagram and m.id in tops
+     ]
+--- a/tools/emit/textmate.py
++++ b/tools/emit/textmate.py
+@@ def _by_keyword(resolved: ResolvedModels) -> dict[str, list[ResolvedModel]]:
+     groups: dict[str, list[ResolvedModel]] = {}
++    tops = set(top_models(resolved).values())
+     for _, model in sorted(resolved.items()):
+-        if model.layer == DIAGRAM_LAYER and model.diagram:
++        if model.layer == DIAGRAM_LAYER and model.diagram and model.id in tops:
+--- a/tools/emit/w3c.py
++++ b/tools/emit/w3c.py
+@@ def emit_w3c_with_lossiness(resolved: ResolvedModels) -> tuple[str, list[Lossy]]:
++    tops = set(top_models(resolved).values())
+     for _, model in sorted(resolved.items()):
+-        if model.layer != DIAGRAM_LAYER or not model.diagram:
++        if model.layer != DIAGRAM_LAYER or not model.diagram or model.id not in tops:
+             continue
+```
+(plus `from tools.model.resolve import top_models` in each). Every diagram model declares a
+`factory` today, so no model is lost. Failing cases: tests/fixtures/sequence/neg/
+note-accross.puml, autonumber-start-overflow.puml, group-stray-else.puml (Lark accepts them
+as SEQUENCE with the current dist/plantuml.lark).
+
+## sequence: Lark terminals match across line ends (`\s`, negated classes)
+
+Lark's dynamic lexer matches each terminal regex against the whole text, so `[\s\_]+` and
+negated classes such as `[^#]+` consume `\n`. Upstream matches one trimmed line. Observed
+with `sequence` in place (grammar filtered to top models, see above):
+* `alt x` / `Alice -> Bob` / `end` / `end`: the pop line `end` takes `[\s\_]+(.*?)` across
+  the newline and eats the second `end` as its comment, so the extra `end` the jar rejects
+  is accepted (neg/group-extra-end.puml).
+* `box "x"` / `participant Alice` / `end box` / `end box`: CommandBoxStart NAME2 `([^#]+)`
+  swallows the next two lines, so one `end box` disappears (neg/box-extra-end.puml).
+Proposed fix in tools/emit/lark.py terminal rendering: rewrite `\s` to `[^\S\r\n]`, and add
+`\r\n` to every negated class (`[^#]` -> `[^#\r\n]`), so no terminal crosses a line end;
+the existing `tail()` lookahead already assumes line-bounded terminals.
