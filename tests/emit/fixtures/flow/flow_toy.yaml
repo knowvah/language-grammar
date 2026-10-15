@@ -1,0 +1,130 @@
+schema_version: 1
+id: flow_toy
+layer: diagram
+diagram: CLASS
+contexts:
+  main:
+    - command: Cmd
+      provenance: {class: toy.Cmd}
+      kind: single
+      parts: {literal: "cmd", ci: false}
+    - command: Done
+      provenance: {class: toy.Done}
+      kind: single
+      parts: {literal: "done", ci: false}
+      pop: true
+    - command: Grp
+      provenance: {class: toy.Grp}
+      kind: single
+      parts: {literal: "grp {", ci: false}
+      push: grp
+    - command: Strict
+      provenance: {class: toy.Strict}
+      kind: single
+      parts: {literal: "strict {", ci: false}
+      push: strict
+      require_pop: true
+    - command: If
+      provenance: {class: toy.If}
+      kind: single
+      parts: {literal: "if", ci: false}
+      push: ifthen
+    - command: Mode
+      provenance: {class: toy.Mode}
+      kind: single
+      parts: {literal: "mode", ci: false}
+      set: modeb
+    - command: Jump
+      provenance: {class: toy.Jump}
+      kind: single
+      parts: {literal: "jump", ci: false}
+      set: orphan
+    - command: Orph
+      provenance: {class: toy.Orph}
+      kind: single
+      parts: {literal: "orph", ci: false}
+      push: orphan
+    - command: Note
+      provenance: {class: toy.Note}
+      kind: multiline
+      parts: {literal: "note", ci: false}
+      end: {literal: end note, ci: false}
+    - command: Bracket
+      provenance: {class: toy.Bracket}
+      kind: multiline-bracket
+      parts: {literal: "br {", ci: false}
+  grp:
+    - command: GCmd
+      provenance: {class: toy.GCmd}
+      kind: single
+      parts: {literal: "cmd", ci: false}
+    - command: GInner
+      provenance: {class: toy.GInner}
+      kind: single
+      parts: {literal: "grp {", ci: false}
+      push: grp
+    - command: GClose
+      provenance: {class: toy.GClose}
+      kind: single
+      parts: {literal: "}", ci: false}
+      pop: true
+  strict:
+    - command: SCmd
+      provenance: {class: toy.SCmd}
+      kind: single
+      parts: {literal: "cmd", ci: false}
+    - command: SInner
+      provenance: {class: toy.SInner}
+      kind: single
+      parts: {literal: "grp {", ci: false}
+      push: grp
+    - command: SClose
+      provenance: {class: toy.SClose}
+      kind: single
+      parts: {literal: "}", ci: false}
+      pop: true
+  ifthen:
+    - command: TCmd
+      provenance: {class: toy.TCmd}
+      kind: single
+      parts: {literal: "cmd", ci: false}
+    - command: TElse
+      provenance: {class: toy.TElse}
+      kind: single
+      parts: {literal: "else", ci: false}
+      set: ifelse
+    - command: TEnd
+      provenance: {class: toy.TEnd}
+      kind: single
+      parts: {literal: "endif", ci: false}
+      pop: true
+  ifelse:
+    - command: ECmd
+      provenance: {class: toy.ECmd}
+      kind: single
+      parts: {literal: "cmd", ci: false}
+    - command: EEnd
+      provenance: {class: toy.EEnd}
+      kind: single
+      parts: {literal: "endif", ci: false}
+      pop: true
+  modeb:
+    - command: MCmd
+      provenance: {class: toy.MCmd}
+      kind: single
+      parts: {literal: "mcmd", ci: false}
+    - command: MBack
+      provenance: {class: toy.MBack}
+      kind: single
+      parts: {literal: "back", ci: false}
+      set: main
+    - command: MPop
+      provenance: {class: toy.MPop}
+      kind: single
+      parts: {literal: "pp", ci: false}
+      pop: true
+  orphan:
+    - command: OCmd
+      provenance: {class: toy.OCmd}
+      kind: single
+      parts: {literal: "o", ci: false}

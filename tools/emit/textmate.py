@@ -25,6 +25,17 @@ Mapping from model entries:
   PCRE2); absent ``ci`` stays case-sensitive.
 * ``pop`` entries are ordinary ``match`` rules outside a pushed context.
 
+Context transitions are only approximated (TextMate has no frame replacement):
+
+* ``set`` nests the target's region inside the current one exactly like ``push``, so after
+  an if/else the enclosing region stays open until its own ``pop`` line (highlighting
+  only; the Lark and W3C emitters replace the frame).
+* ``require_pop`` is ignored: an unclosed region simply extends to the end of the block.
+* The ``end`` of a region is the alternation of the target's ``pop`` entries. The flattened
+  regexes are searched anywhere in the line and only carry ``^``/``$`` where a model regex
+  has them, so indentation and trailing blanks do not stop a match (unlike Lark, no
+  whitespace handling is added).
+
 Approximation: TextMate is line based and picks the leftmost-first rule of the active
 list, so upstream's ordered, stateful command matching is only approximated.
 """

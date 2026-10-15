@@ -33,6 +33,7 @@ contexts:
           - {regex: "\\s*"}
           - {literal: "{", ci: false}
       push: pkg
+      require_pop: true
     - command: CommandHide
       provenance: {class: toy.CommandHide}
       kind: single

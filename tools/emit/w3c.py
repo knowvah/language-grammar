@@ -21,8 +21,16 @@ Conventions (repeated in the generated header):
   single line contains it); ``reject: true`` entries are dropped;
   ``multiline-bracket`` as a body closed by a line ``WS* "}"`` (bracket depth is not
   modelled).
-* Structure mirrors the Lark emitter: ``push``/``set`` become nested context rules, ordered
-  alternatives become unordered ``|``.
+* Structure mirrors the Lark emitter (``tools.emit.flow``, ``tools.emit.flow_rules``):
+  ``push``/``set`` become newline-led block rules (``(NL line?)* (NL exit)``). A ``set``
+  line in a pushed context embeds the target's block, so it replaces the frame instead of
+  needing a second closing line; a block that is still open at the end of the body is a
+  ``*_tail`` rule that can only be the last line of its parent (a push without
+  ``require_pop``); in ``main`` ``pop`` entries are dropped and a ``set`` embeds
+  the target's ``*_root`` block. Trailing blanks are
+  allowed after a first line (``WS?``) and before an ``end`` part. Ordered alternatives
+  become unordered ``|``. ``require_pop`` backtracking (the interpreter retries the pushing
+  line when a body never closes) is not expressible.
 
 ``emit_w3c`` returns the text (the ``tools.emit.build`` contract); ``emit_w3c_with_lossiness``
 also returns the lossiness entries. The header states the total and a per-construct tally.
@@ -32,16 +40,15 @@ from __future__ import annotations
 
 from collections import Counter
 
+from tools.emit import flow
+from tools.emit.flow_rules import FlowBuilder
 from tools.emit.lark import (
     KIND_BRACKET,
     KIND_MULTILINE,
-    MAIN_CONTEXT,
     UML_KEYWORD,
     _Names,
-    snake,
     start_keyword,
 )
-from tools.emit.skip import skipped
 from tools.emit.tops import emitted_diagrams
 from tools.emit.w3c_regex import translate_regex
 from tools.emit.w3c_text import (
@@ -62,75 +69,38 @@ from tools.emit.w3c_text import (
 from tools.model import Entry, Part, ResolvedModel, ResolvedModels
 
 
-class _Diagram:
+class _Diagram(FlowBuilder):
     """Builds the productions of one diagram-layer model."""
 
     def __init__(self, model: ResolvedModel, names: _Names, sink: Sink) -> None:
-        assert model.diagram is not None
-        self.model, self.names, self.sink = model, names, sink
-        self.prefix = model.diagram.lower()
+        super().__init__(model, names)
+        self.sink = sink
         self.rules: list[str] = []
-        self.context_rules: dict[str, str] = {}
-        self.pending: list[str] = []
-        self.rule = self.prefix
-        self.body = names.unique(f"{self.prefix}_body")
 
     def render(self) -> list[str]:
         """Productions for this model."""
-        line = self._lines(self.prefix, self.model.contexts.get(MAIN_CONTEXT, []), pop=False)
-        self._add(f"{self.body} ::= ({line}? NL)*")
-        while self.pending:
-            self._context(self.pending.pop(0))
+        self.render_flow()
         return self.rules
 
-    def _add(self, line: str) -> None:
-        self.rules.append(line)
+    def add(self, name: str, text: str) -> None:
+        self.rules.append(f"{name} ::= {text}")
         self.rules.extend(self.sink.drain())
 
-    def _context(self, ctx: str) -> None:
-        rule = self.context_rules[ctx]
-        entries = self.model.contexts[ctx]
-        line = self._lines(rule, entries, pop=False)
-        pop_line = self._lines(f"{rule}_pop", entries, pop=True)
-        self._add(f"{rule} ::= ({line}? NL)* {pop_line or line + '?'}")
+    def choice(self, options: list[str]) -> str:
+        return "(" + " | ".join(options) + ")"
 
-    def _lines(self, base: str, entries: list[Entry], pop: bool) -> str:
-        chosen = [e for e in entries if bool(e.get("pop")) == pop and not skipped(e)]
-        name = self.names.unique(f"{base}_line")
-        if not chosen:
-            if not pop:
-                self._add(f"{name} ::= WS")
-            return "" if pop else name
-        commands = f"{name}_command"
-        self.names.used.add(commands)
-        alternatives = [self._entry(e) for e in chosen]
-        self._add(f"{name} ::= WS? {commands} WS?{'' if pop else ' | WS'}")
-        self._add(f"{commands} ::= " + "\n    | ".join(alternatives))
-        return name
-
-    def _entry(self, entry: Entry) -> str:
-        rule = self.names.unique(f"{self.prefix}_{snake(entry['command'])}")
-        self.rule = rule
-        self._add(f"{rule} ::= {self._entry_expr(entry).text}")
-        return rule
-
-    def _entry_expr(self, entry: Entry) -> Node:
+    def entry_expr(self, entry: Entry, role: str) -> str:
         expr = self.part(entry["parts"])
+        moved = flow.transition(entry)
+        body = [Node("WS?"), Node("NL"), Node("(BODY_LINE? NL)*")]
         if entry["kind"] == KIND_BRACKET:
-            return join_seq([expr, Node("NL"), Node("(BODY_LINE? NL)*"), Node(BRACKET_CLOSE)])
+            return join_seq([expr, *body, Node(BRACKET_CLOSE)]).text
         if entry["kind"] == KIND_MULTILINE and "end" in entry:
-            tail = [Node("NL"), Node("(BODY_LINE? NL)*"), self.part(entry["end"])]
-            return join_seq([expr, *tail])
-        target = entry.get("push") or entry.get("set")
-        if target:
-            return join_seq([expr, Node("NL"), Node(self._context_rule(target))])
-        return expr
-
-    def _context_rule(self, ctx: str) -> str:
-        if ctx not in self.context_rules:
-            self.context_rules[ctx] = self.names.unique(f"{self.prefix}_{snake(ctx)}_block")
-            self.pending.append(ctx)
-        return self.context_rules[ctx]
+            return join_seq([expr, *body, Node("WS?"), self.part(entry["end"])]).text
+        if moved:
+            block = self.form(moved[1], flow.target_form(entry, role))
+            return join_seq([expr, Node("WS?"), Node(block)]).text
+        return expr.text
 
     def part(self, part: Part) -> Node:
         """W3C expression for a Part."""

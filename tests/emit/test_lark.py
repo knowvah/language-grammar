@@ -23,7 +23,9 @@ AMBIGUOUS = FIXTURES / "ambiguous.lark"
 SHORT_TIMEOUT_S = 0.1
 OPTIONAL_PARTS = 30
 TOY_BUILD_BUDGET_S = 2.0
-REAL_BUILD_BUDGET_S = 30.0
+# Guards against the cartesian-expansion blow-up (a build that never finished), not wall
+# time: 99 s at load average ~241 with concurrent agents, 7-8 s on an idle machine.
+REAL_BUILD_BUDGET_S = 120.0
 OK = "ok"
 REJECT = "reject"
 CLASS_SRC = "@startuml\n{body}\n@enduml\n"

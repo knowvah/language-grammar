@@ -288,11 +288,11 @@ def test_header_states_lossiness_count_and_convention(
 
 def test_structure_push_pop_and_multiline(lossy_result: tuple[str, list[w3c.Lossy]]) -> None:
     prods = productions(lossy_result[0])
-    assert prods["class_command_open"] == '"{" NL class_inner_block'
-    assert prods["class_inner_block"] == "(class_inner_block_line? NL)* class_inner_block_pop_line"
+    assert prods["class_command_open"] == '"{" WS? class_inner_block'
+    assert prods["class_inner_block"] == "(NL class_inner_line?)* (NL class_inner_exit)"
     assert prods["class_command_item"] == '("a" | "b")*'
     assert prods["class_command_block"].endswith(
-        '(BODY_LINE? NL)* [Ee] [Nn] [Dd] " " [Nn] [Oo] [Tt] [Ee]'
+        '(BODY_LINE? NL)* WS? [Ee] [Nn] [Dd] " " [Nn] [Oo] [Tt] [Ee]'
     )
     assert prods["class_line_command"].count("\n") == 0
     assert prods["class_line_command"].split(" | ")[0] == "class_command_ident"
@@ -335,8 +335,10 @@ contexts:
         encoding="utf-8",
     )
     prods = check_w3c_syntax(w3c.emit_w3c(resolve(load_dir(tmp_path))))
-    assert prods["class_empty_block"] == "(class_empty_block_line? NL)* class_empty_block_line?"
-    assert prods["class_empty_block_line"] == "WS"
+    # nothing can pop `empty`: the push is the spine (last line) and the body stays open
+    assert prods["class_empty_tail"] == "(NL class_empty_line?)*"
+    assert prods["class_empty_line"] == "WS"
+    assert "class_empty_block" not in prods
 
 
 # --- build path ------------------------------------------------------------------------------
