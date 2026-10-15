@@ -42,6 +42,7 @@ class EmitterSpec:
 
 EMITTERS: dict[str, EmitterSpec] = {
     "lark": EmitterSpec("tools.emit.lark:emit_lark", "plantuml.lark"),
+    "textmate": EmitterSpec("tools.emit.textmate:emit_textmate_json", "plantuml.tmLanguage.json"),
 }
 
 

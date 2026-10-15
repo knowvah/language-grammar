@@ -1,0 +1,240 @@
+"""Emit the command model as a TextMate grammar, ``dist/plantuml.tmLanguage.json``.
+
+Shape (scope name ``source.plantuml``)::
+
+    patterns: one begin/end block per ``@start<kw>`` keyword
+    repository:
+      comments, preprocessor      fixed rules, included in every block
+      diagram_<kw>                union of the main contexts of the diagram models that
+                                  share ``@start<kw>`` (identical rules deduplicated)
+      ctx_<model>_<context>       a pushed context (one entry per push/set target)
+
+Mapping from model entries:
+
+* ``single`` / ``opaque`` -> ``match`` with the flattened regex; a Part's ``scope``
+  becomes a numbered capture (``<scope>.plantuml``), unscoped Parts do not capture.
+* ``multiline`` / ``multiline-bracket`` -> ``begin``/``end`` (the entry's ``end`` Part)
+  with the pushed context, if any, as nested patterns.
+* a ``single`` entry with ``push``/``set`` -> ``begin``/``end`` where ``end`` is the
+  alternation of the pushed context's ``pop`` entries (``$`` if it has none).
+* a multiline entry without ``end`` (the generated models omit it) ends at ``^\\s*\\}`` for
+  ``multiline-bracket`` and at the end of the first line otherwise.
+* ``pop`` entries are ordinary ``match`` rules outside a pushed context.
+
+Approximation: TextMate is line based and picks the leftmost-first rule of the active
+list, so upstream's ordered, stateful command matching is only approximated.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+from tools.emit.lark import DIAGRAM_LAYER, MAIN_CONTEXT, start_keyword
+from tools.emit.textmate_regex import Captures, flatten, flatten_alternatives
+from tools.model import Entry, ModelLoadError, ResolvedModel, ResolvedModels
+from tools.model.load import load_dir
+from tools.model.resolve import resolve
+
+SCOPE_NAME = "source.plantuml"
+FILE_TYPES = ["puml", "plantuml", "pu", "iuml", "wsd"]
+MULTILINE_KINDS = frozenset({"multiline", "multiline-bracket"})
+LINE_END = "$"
+BRACKET_KIND = "multiline-bracket"
+BRACKET_END = "^\\s*\\}"
+ENCODING = "utf-8"
+EXIT_OK = 0
+EXIT_ERROR = 1
+COMMENTS = "comments"
+PREPROCESSOR = "preprocessor"
+BLOCK_SCOPE = "meta.diagram.plantuml"
+START_SCOPE = "keyword.control.start.plantuml"
+END_SCOPE = "keyword.control.end.plantuml"
+Rule = dict[str, Any]
+
+COMMENT_RULES: Rule = {
+    "patterns": [
+        {
+            "name": "comment.block.plantuml",
+            "begin": "/'",
+            "end": "'/",
+        },
+        {"name": "comment.line.apostrophe.plantuml", "match": "^\\s*'.*$"},
+    ]
+}
+PREPROCESSOR_RULES: Rule = {
+    "patterns": [
+        {
+            "name": "meta.preprocessor.plantuml",
+            "match": "^\\s*(![A-Za-z_]\\w*).*$",
+            "captures": {"1": {"name": "keyword.control.directive.plantuml"}},
+        }
+    ]
+}
+
+
+def _with_captures(rule: Rule, key: str, captures: Captures) -> Rule:
+    if captures:
+        rule[key] = captures
+    return rule
+
+
+def _ctx_key(model: ResolvedModel, context: str) -> str:
+    return f"ctx_{model.id}_{context}"
+
+
+class _Rules:
+    """Turns entries of one model into TextMate rules, collecting pushed contexts."""
+
+    def __init__(self, model: ResolvedModel, repository: dict[str, Rule]) -> None:
+        self.model = model
+        self.repository = repository
+
+    def context_rules(self, entries: list[Entry], skip_pop: bool) -> list[Rule]:
+        """Rules for ``entries``; ``skip_pop`` leaves ``pop`` entries to the ``end``."""
+        rules = []
+        for entry in entries:
+            if "command" not in entry or (skip_pop and entry.get("pop")):
+                continue
+            rules.append(self.entry_rule(entry))
+        return rules
+
+    def entry_rule(self, entry: Entry) -> Rule:
+        """One rule for a command entry."""
+        regex, captures = flatten(entry["parts"])
+        target = entry.get("push") or entry.get("set")
+        if entry["kind"] in MULTILINE_KINDS:
+            end_regex, end_captures = self._multiline_end(entry)
+        elif target in self.model.contexts:
+            end_regex, end_captures = self._pop_end(target)
+        else:
+            return _with_captures({"match": regex}, "captures", captures)
+        rule: Rule = {"begin": regex}
+        _with_captures(rule, "beginCaptures", captures)
+        rule["end"] = end_regex
+        _with_captures(rule, "endCaptures", end_captures)
+        if target in self.model.contexts:
+            rule["patterns"] = [{"include": "#" + self._push(target)}]
+        return rule
+
+    @staticmethod
+    def _multiline_end(entry: Entry) -> tuple[str, Captures]:
+        if "end" in entry:
+            return flatten(entry["end"])
+        if entry["kind"] == BRACKET_KIND:
+            return BRACKET_END, {}
+        return LINE_END, {}
+
+    def _pop_end(self, context: str) -> tuple[str, Captures]:
+        pops = [e["parts"] for e in self.model.contexts[context] if e.get("pop")]
+        return flatten_alternatives(pops) if pops else (LINE_END, {})
+
+    def _push(self, context: str) -> str:
+        key = _ctx_key(self.model, context)
+        if key not in self.repository:
+            self.repository[key] = {"patterns": []}  # reserve first: contexts may recurse
+            patterns = self.context_rules(self.model.contexts[context], skip_pop=True)
+            self.repository[key]["patterns"] = patterns
+        return key
+
+
+def _group_rules(models: list[ResolvedModel], repository: dict[str, Rule]) -> list[Rule]:
+    """Union of the main-context rules of ``models``, identical rules kept once."""
+    seen: set[str] = set()
+    rules: list[Rule] = []
+    for model in models:
+        builder = _Rules(model, repository)
+        for rule in builder.context_rules(model.contexts.get(MAIN_CONTEXT, []), False):
+            key = json.dumps(rule, sort_keys=True)
+            if key not in seen:
+                seen.add(key)
+                rules.append(rule)
+    return rules
+
+
+def _block(keyword: str) -> Rule:
+    return {
+        "name": BLOCK_SCOPE,
+        "begin": f"(?i)^\\s*(@start{keyword})(?![A-Za-z0-9])",
+        "beginCaptures": {"1": {"name": START_SCOPE}},
+        "end": f"(?i)^\\s*(@end{keyword})(?![A-Za-z0-9])",
+        "endCaptures": {"1": {"name": END_SCOPE}},
+        "patterns": [
+            {"include": "#" + COMMENTS},
+            {"include": "#" + PREPROCESSOR},
+            {"include": f"#diagram_{keyword}"},
+        ],
+    }
+
+
+def _by_keyword(resolved: ResolvedModels) -> dict[str, list[ResolvedModel]]:
+    groups: dict[str, list[ResolvedModel]] = {}
+    for _, model in sorted(resolved.items()):
+        if model.layer == DIAGRAM_LAYER and model.diagram:
+            groups.setdefault(start_keyword(model.diagram), []).append(model)
+    return groups
+
+
+def emit_textmate(resolved: ResolvedModels) -> dict[str, Any]:
+    """The tmLanguage grammar for the diagram-layer models in ``resolved``."""
+    repository: dict[str, Rule] = {
+        COMMENTS: COMMENT_RULES,
+        PREPROCESSOR: PREPROCESSOR_RULES,
+    }
+    groups = _by_keyword(resolved)
+    blocks = []
+    for keyword, models in groups.items():
+        repository[f"diagram_{keyword}"] = {"patterns": _group_rules(models, repository)}
+        blocks.append(_block(keyword))
+    return {
+        "name": "PlantUML",
+        "scopeName": SCOPE_NAME,
+        "fileTypes": FILE_TYPES,
+        "patterns": [{"include": "#" + COMMENTS}, *blocks],
+        "repository": repository,
+    }
+
+
+def emit_textmate_json(resolved: ResolvedModels) -> str:
+    """Registry-compatible emitter: the grammar as 2-space-indented JSON + newline."""
+    return json.dumps(emit_textmate(resolved), indent=2, ensure_ascii=False) + "\n"
+
+
+def regexes(grammar: Any) -> list[str]:
+    """Every ``match``/``begin``/``end`` regex anywhere in ``grammar``, in document order."""
+    found: list[str] = []
+    if isinstance(grammar, dict):
+        for key, value in grammar.items():
+            if key in ("match", "begin", "end") and isinstance(value, str):
+                found.append(value)
+            else:
+                found.extend(regexes(value))
+    elif isinstance(grammar, list):
+        for item in grammar:
+            found.extend(regexes(item))
+    return found
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """``python -m tools.emit.textmate --model-dir DIR --out FILE``."""
+    parser = argparse.ArgumentParser(prog="python -m tools.emit.textmate")
+    parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        text = emit_textmate_json(resolve(load_dir(args.model_dir)))
+    except ModelLoadError as exc:
+        print(exc, file=sys.stderr)
+        return EXIT_ERROR
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(text, encoding=ENCODING, newline="\n")
+    print(args.out)
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    sys.exit(main())
