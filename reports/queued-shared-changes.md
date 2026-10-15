@@ -176,3 +176,73 @@ with and without the patch. Needs a unit test in tests/interp (for example, a jo
 - common / `require_pop` → done in 063d6ee (backtracks like `PSystemCommandFactory.java:236-240`).
 - common / entry-level `reject` → done in 063d6ee.
 - style / `scan_join` early exit → done in 494ce06.
+
+## sequence: test_common assumes every command factory is still probed (blocking the full suite)
+
+Once a family model (`sequence`, T17; `class`, T18) includes `common`, `with_probes` no longer
+creates `probe-gen-sequence-diagram` / `probe-gen-class-diagram`, so three T16 tests fail:
+`test_each_reject_directly_follows_its_narrowed_rule` and
+`test_refined_entries_are_marked_refined_by_common` (KeyError on the probe id) and
+`test_every_command_factory_with_the_common_block_gets_a_probe` (Sequence/Class no longer probed).
+Fix: look up the top model of the factory (probe or family model) instead of the probe id.
+Validated on a scratch copy with `model/diagrams/sequence*.yaml` in place: 327 passed, 12 xfailed.
+
+```diff
+@@ -49,6 +49,7 @@
+ DIAGRAM_LAYER = "diagram"
+ PROBE_PREFIX = "probe-"
+ UPSTREAM_PREFIX = "src/main/java/net/sourceforge/plantuml/"
++SEQUENCE_FACTORY = "SequenceDiagramFactory"
+ HEADER = re.compile(r"^' (?P<key>common|factory|gap): (?P<value>.+)$")
+ START = re.compile(r"^@start(?P<keyword>\w+)", re.MULTILINE)
+ 
+@@ -194,7 +195,7 @@
+ ) -> None:
+     errors = raw_models[ERRORS_ID].insert_after
+     assert all(e.get("reject") for entries in errors.values() for e in entries)
+-    main = [e["command"] for e in models[PROBE_PREFIX + "gen-sequence-diagram"].contexts[MAIN]]
++    main = [e["command"] for e in common_top(models, SEQUENCE_FACTORY).contexts[MAIN]]
+     for key, entries in errors.items():
+         (entry,) = entries
+         assert main[main.index(key) + 1] == entry["command"], key
+@@ -208,12 +209,22 @@
+     ]
+ 
+ 
+-def test_every_command_factory_with_the_common_block_gets_a_probe(models: ResolvedModels) -> None:
+-    probed = {base.factory for _, base in probe_pairs(models)}
+-    assert {"SequenceDiagramFactory", "ClassDiagramFactory", "GanttDiagramFactory"} <= probed
+-    assert len(probed) >= 20
++def common_top(models: ResolvedModels, factory: str) -> ResolvedModel:
++    """Top model of ``factory``: its probe, or the family model that includes ``common``."""
++    top = models[top_models(models)[factory]]
++    assert COMMON_ID in top.includes, factory
++    return top
+ 
+ 
++def test_every_command_factory_with_the_common_block_includes_common(
++    models: ResolvedModels,
++) -> None:
++    tops = [models[mid] for mid in top_models(models).values()]
++    covered = {m.factory for m in tops if COMMON_ID in m.includes}
++    assert {SEQUENCE_FACTORY, "ClassDiagramFactory", "GanttDiagramFactory"} <= covered
++    assert len(covered) >= 20
++
++
+ def test_probes_keep_the_upstream_order_of_the_base_model(
+     raw_models: dict[str, Model], models: ResolvedModels
+ ) -> None:
+@@ -235,8 +246,8 @@
+     raw_models: dict[str, Model], models: ResolvedModels
+ ) -> None:
+     keys = set(raw_models[COMMON_ID].overrides)
+-    probe = models[PROBE_PREFIX + "gen-sequence-diagram"]
+-    refined = {e["command"] for e in probe.contexts[MAIN] if e.get("refined_by") == COMMON_ID}
++    top = common_top(models, SEQUENCE_FACTORY)
++    refined = {e["command"] for e in top.contexts[MAIN] if e.get("refined_by") == COMMON_ID}
+     assert refined == keys
+ 
+ 
+```
+
+- sequence / test_common top-model lookup → applied by the orchestrator (see the next commit).

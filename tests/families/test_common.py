@@ -48,6 +48,7 @@ SHARED_ID = "shared"
 MAIN = "main"
 DIAGRAM_LAYER = "diagram"
 PROBE_PREFIX = "probe-"
+SEQUENCE_FACTORY = "SequenceDiagramFactory"
 UPSTREAM_PREFIX = "src/main/java/net/sourceforge/plantuml/"
 HEADER = re.compile(r"^' (?P<key>common|factory|gap): (?P<value>.+)$")
 START = re.compile(r"^@start(?P<keyword>\w+)", re.MULTILINE)
@@ -194,7 +195,7 @@ def test_each_reject_directly_follows_its_narrowed_rule(
 ) -> None:
     errors = raw_models[ERRORS_ID].insert_after
     assert all(e.get("reject") for entries in errors.values() for e in entries)
-    main = [e["command"] for e in models[PROBE_PREFIX + "gen-sequence-diagram"].contexts[MAIN]]
+    main = [e["command"] for e in common_top(models, SEQUENCE_FACTORY).contexts[MAIN]]
     for key, entries in errors.items():
         (entry,) = entries
         assert main[main.index(key) + 1] == entry["command"], key
@@ -208,10 +209,20 @@ def probe_pairs(models: ResolvedModels) -> list[tuple[ResolvedModel, ResolvedMod
     ]
 
 
-def test_every_command_factory_with_the_common_block_gets_a_probe(models: ResolvedModels) -> None:
-    probed = {base.factory for _, base in probe_pairs(models)}
-    assert {"SequenceDiagramFactory", "ClassDiagramFactory", "GanttDiagramFactory"} <= probed
-    assert len(probed) >= 20
+def common_top(models: ResolvedModels, factory: str) -> ResolvedModel:
+    """Top model of ``factory``: its probe, or the family model that includes ``common``."""
+    top = models[top_models(models)[factory]]
+    assert COMMON_ID in top.includes, factory
+    return top
+
+
+def test_every_command_factory_with_the_common_block_includes_common(
+    models: ResolvedModels,
+) -> None:
+    tops = [models[mid] for mid in top_models(models).values()]
+    covered = {m.factory for m in tops if COMMON_ID in m.includes}
+    assert {SEQUENCE_FACTORY, "ClassDiagramFactory", "GanttDiagramFactory"} <= covered
+    assert len(covered) >= 20
 
 
 def test_probes_keep_the_upstream_order_of_the_base_model(
@@ -235,8 +246,8 @@ def test_refined_entries_are_marked_refined_by_common(
     raw_models: dict[str, Model], models: ResolvedModels
 ) -> None:
     keys = set(raw_models[COMMON_ID].overrides)
-    probe = models[PROBE_PREFIX + "gen-sequence-diagram"]
-    refined = {e["command"] for e in probe.contexts[MAIN] if e.get("refined_by") == COMMON_ID}
+    top = common_top(models, SEQUENCE_FACTORY)
+    refined = {e["command"] for e in top.contexts[MAIN] if e.get("refined_by") == COMMON_ID}
     assert refined == keys
 
 
