@@ -178,6 +178,7 @@ def render_files(
             "id": mid,
             "layer": "diagram",
             "diagram": factories[factory]["diagramType"],
+            "factory": factory,
         }
         if _uses_shared(entries, local, shared):
             doc["include"] = [SHARED_ID]

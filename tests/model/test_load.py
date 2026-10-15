@@ -169,3 +169,19 @@ def test_cli_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     write(tmp_path, HEADER + "bogus: 1\n")
     assert main(["--check", str(tmp_path)]) == 1
     assert ":/bogus: unknown key" in capsys.readouterr().err
+
+
+def test_factory_and_start_map_keys_are_layer_scoped(tmp_path: Path) -> None:
+    (tmp_path / "doc.yaml").write_text(
+        "schema_version: 1\nid: doc\nlayer: document\nstart_map: {uml: [ClassDiagramFactory]}\n"
+    )
+    (tmp_path / "d.yaml").write_text(
+        "schema_version: 1\nid: d\nlayer: diagram\ndiagram: CLASS\nfactory: ClassDiagramFactory\n"
+    )
+    assert sorted(load_dir(tmp_path)) == ["d", "doc"]
+    (tmp_path / "s.yaml").write_text(
+        "schema_version: 1\nid: s\nlayer: shared\nfactory: X\nstart_map: {uml: [X]}\n"
+    )
+    with pytest.raises(ModelLoadError) as exc:
+        load_dir(tmp_path)
+    assert {e.file.endswith("s.yaml") for e in exc.value.errors} == {True}

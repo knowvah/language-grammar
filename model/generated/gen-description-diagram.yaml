@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-description-diagram
 layer: diagram
 diagram: DESCRIPTION
+factory: DescriptionDiagramFactory
 include: [gen-shared]
 variables:
   COMMON:

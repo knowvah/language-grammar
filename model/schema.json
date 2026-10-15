@@ -10,6 +10,15 @@
     "id": {"$ref": "#/$defs/model_id"},
     "layer": {"enum": ["document", "preproc", "diagram", "shared"]},
     "diagram": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+    "factory": {"$ref": "#/$defs/factory_name"},
+    "start_map": {
+      "type": "object",
+      "propertyNames": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+      "additionalProperties": {
+        "type": "array", "minItems": 1, "uniqueItems": true,
+        "items": {"$ref": "#/$defs/factory_name"}
+      }
+    },
     "include": {
       "type": "array",
       "uniqueItems": true,
@@ -33,10 +42,15 @@
     {
       "if": {"properties": {"layer": {"const": "diagram"}}, "required": ["layer"]},
       "then": {"required": ["diagram"]},
-      "else": {"not": {"required": ["diagram"]}}
+      "else": {"not": {"anyOf": [{"required": ["diagram"]}, {"required": ["factory"]}]}}
+    },
+    {
+      "if": {"properties": {"layer": {"const": "document"}}, "required": ["layer"]},
+      "else": {"not": {"required": ["start_map"]}}
     }
   ],
   "$defs": {
+    "factory_name": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"},
     "model_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"},
     "variable_name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
     "context_name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},

@@ -4,6 +4,7 @@ schema_version: 1
 id: gen-activity-diagram
 layer: diagram
 diagram: ACTIVITY
+factory: ActivityDiagramFactory
 include: [gen-shared]
 contexts:
   main:

@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-psystem-dot
 layer: diagram
 diagram: DOT
+factory: PSystemDotFactory
 contexts:
   main:
   - command: PSystemDotFactory

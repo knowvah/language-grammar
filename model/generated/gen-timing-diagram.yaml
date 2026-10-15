@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-timing-diagram
 layer: diagram
 diagram: TIMING
+factory: TimingDiagramFactory
 include: [gen-shared]
 contexts:
   main:

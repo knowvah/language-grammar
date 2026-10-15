@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-help
 layer: diagram
 diagram: HELP
+factory: HelpFactory
 contexts:
   main:
   - command: CommandHelpColor

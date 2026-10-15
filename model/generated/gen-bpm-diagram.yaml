@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-bpm-diagram
 layer: diagram
 diagram: BPM
+factory: BpmDiagramFactory
 contexts:
   main:
   - command: CommandDockedEvent

@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-class-diagram
 layer: diagram
 diagram: CLASS
+factory: ClassDiagramFactory
 include: [gen-shared]
 variables:
   CODE:

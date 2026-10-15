@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-board-diagram
 layer: diagram
 diagram: BOARD
+factory: BoardDiagramFactory
 include: [gen-shared]
 contexts:
   main:

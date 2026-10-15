@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-wbs-diagram
 layer: diagram
 diagram: WBS
+factory: WBSDiagramFactory
 include: [gen-shared]
 variables:
   BACKCOLOR_1:

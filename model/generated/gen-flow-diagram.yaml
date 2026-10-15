@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-flow-diagram
 layer: diagram
 diagram: FLOW
+factory: FlowDiagramFactory
 contexts:
   main:
   - command: CommandLineSimple

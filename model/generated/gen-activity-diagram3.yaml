@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-activity-diagram3
 layer: diagram
 diagram: ACTIVITY
+factory: ActivityDiagramFactory3
 include: [gen-shared]
 variables:
   INCOMING_COLOR:

@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-sequence-diagram
 layer: diagram
 diagram: SEQUENCE
+factory: SequenceDiagramFactory
 include: [gen-shared]
 variables:
   TYPE_2:

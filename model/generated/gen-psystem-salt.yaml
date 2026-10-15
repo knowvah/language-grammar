@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-psystem-salt
 layer: diagram
 diagram: SALT
+factory: PSystemSaltFactory
 include: [gen-shared]
 contexts:
   main:

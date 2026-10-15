@@ -4,6 +4,7 @@ schema_version: 1
 id: gen-psystem-ebnf
 layer: diagram
 diagram: EBNF
+factory: PSystemEbnfFactory
 include: [gen-shared]
 contexts:
   main:

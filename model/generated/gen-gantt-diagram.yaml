@@ -4,6 +4,7 @@ schema_version: 1
 id: gen-gantt-diagram
 layer: diagram
 diagram: GANTT
+factory: GanttDiagramFactory
 include: [gen-shared]
 contexts:
   main:

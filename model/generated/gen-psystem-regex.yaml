@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-psystem-regex
 layer: diagram
 diagram: REGEX
+factory: PSystemRegexFactory
 include: [gen-shared]
 contexts:
   main:

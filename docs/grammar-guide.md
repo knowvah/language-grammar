@@ -122,6 +122,21 @@ Regex rules (checked by the loader):
 * Cycles are errors naming the path: `include cycle: A → B → A` (model ids, or
   `model.context` nodes for context splices) and `variable cycle: m.X → m.Y → m.X`.
 
+### Diagram dispatch (`factory`, `start_map`)
+
+Mirrors `PSystemBuilder.java:133-200` (factory order) and `:257-287` (try loop) at 97a5992.
+
+* `factory: <SimpleName>` (diagram layer only) names the upstream `PSystemFactory` a
+  diagram model implements. Generated models set it (`gen-class-diagram` →
+  `ClassDiagramFactory`).
+* `start_map: {<keyword>: [<factory>, …]}` (document layer only) maps a start keyword
+  (`uml` for `@startuml`) to the factories tried for it, in `PSystemBuilder` order.
+* For each factory the interpreter uses the **top** diagram model declaring it: the one
+  no other model with the same `factory` includes (transitively). A hand-written family
+  model therefore sets the same `factory` and `include`s the generated model it
+  extends; it replaces the generated one in dispatch without editing `start_map`.
+  Two top models for one factory is a load error.
+
 ### Ids and files
 
 `id` equals the file stem and must be unique across the whole tree: files under

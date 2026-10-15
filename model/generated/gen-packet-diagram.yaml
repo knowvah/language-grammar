@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-packet-diagram
 layer: diagram
 diagram: PACKET
+factory: PacketDiagramFactory
 include: [gen-shared]
 contexts:
   main:

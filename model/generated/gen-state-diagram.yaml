@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-state-diagram
 layer: diagram
 diagram: STATE
+factory: StateDiagramFactory
 include: [gen-shared]
 variables:
   CODE1_2:

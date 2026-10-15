@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-chart-diagram
 layer: diagram
 diagram: CHART
+factory: ChartDiagramFactory
 include: [gen-shared]
 contexts:
   main:

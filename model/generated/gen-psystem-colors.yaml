@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-psystem-colors
 layer: diagram
 diagram: SEQUENCE
+factory: PSystemColorsFactory
 contexts:
   main:
   - command: PSystemColorsFactory

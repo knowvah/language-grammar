@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-mind-map-diagram
 layer: diagram
 diagram: MINDMAP
+factory: MindMapDiagramFactory
 include: [gen-shared]
 contexts:
   main:

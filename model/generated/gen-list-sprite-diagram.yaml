@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-list-sprite-diagram
 layer: diagram
 diagram: SPRITES
+factory: ListSpriteDiagramFactory
 include: [gen-shared]
 contexts:
   main:

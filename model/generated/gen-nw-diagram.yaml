@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-nw-diagram
 layer: diagram
 diagram: NWDIAG
+factory: NwDiagramFactory
 include: [gen-shared]
 contexts:
   main:

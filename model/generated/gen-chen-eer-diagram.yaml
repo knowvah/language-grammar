@@ -3,6 +3,7 @@ schema_version: 1
 id: gen-chen-eer-diagram
 layer: diagram
 diagram: CHEN_EER
+factory: ChenEerDiagramFactory
 include: [gen-shared]
 contexts:
   main:
