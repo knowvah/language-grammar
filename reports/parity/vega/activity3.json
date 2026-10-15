@@ -7,7 +7,7 @@
       "interp": true,
       "interp_diagram": "ACTIVITY",
       "kind": "raw_fr",
-      "lark": true,
+      "lark": null,
       "note": "",
       "oracle": true,
       "oracle_type": "ACTIVITY",

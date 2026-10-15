@@ -43,6 +43,9 @@ FLOW_ID, REJECT_ID, ACTIONS_ID = (
     "activity3-core-actions",
 )
 CORE_IDS = (FLOW_ID, REJECT_ID, ACTIONS_ID)
+# T21b (tests/families/test_activity3_structure.py): included between common and the core
+# models; its swimlane-strategy heads lead the top level.
+STRUCTURE_ID, T21B_TOP_HEADS = "activity3-structure", "a3_lanes_decide"
 GENERATED_ID = "gen-activity-diagram3"
 FACTORY = "ActivityDiagramFactory3"
 DIAGRAM = "ACTIVITY"
@@ -294,7 +297,7 @@ def test_activity3_is_the_top_model_of_its_factory(
 ) -> None:
     raw = raw_models[ACTIVITY3_ID]
     assert (raw.layer, raw.diagram, raw.factory) == ("diagram", DIAGRAM, FACTORY)
-    assert raw.include == [GENERATED_ID, "common", *CORE_IDS]
+    assert raw.include == [GENERATED_ID, "common", STRUCTURE_ID, *CORE_IDS]
     assert top_models(models)[FACTORY] == ACTIVITY3_ID
     for mid in CORE_IDS:
         assert (raw_models[mid].layer, raw_models[mid].diagram) == ("shared", None)
@@ -319,10 +322,13 @@ def test_the_class_split_covers_every_activity_command(models: ResolvedModels) -
 def test_each_body_is_its_head_rejects_then_the_generated_order(
     act: ResolvedModel, models: ResolvedModels, context: str
 ) -> None:
-    got = commands(act.contexts[context])
+    entries = act.contexts[context]
+    if context == "main":  # T21b's swimlane-strategy heads come first (structure-lanes)
+        entries = entries[len(act.contexts[T21B_TOP_HEADS]) :]
+    got = commands(entries)
     head = HEADS[context]
     assert got[: len(head)] == head
-    assert all(e.get("reject") is True for e in act.contexts[context][: len(head)])
+    assert all(e.get("reject") is True for e in entries[: len(head)])
     wanted = generated_commands(models)
     assert [c for c in got[len(head) :] if c in set(wanted)] == wanted
     assert not set(got[len(head) :]) & set(ALL_CLOSERS + BEFORE_CASE)

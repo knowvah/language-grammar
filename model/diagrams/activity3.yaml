@@ -48,7 +48,7 @@ id: activity3
 layer: diagram
 diagram: ACTIVITY
 factory: ActivityDiagramFactory3
-include: [gen-activity-diagram3, common, activity3-core-flow, activity3-core-reject, activity3-core-actions]
+include: [gen-activity-diagram3, common, activity3-structure, activity3-core-flow, activity3-core-reject, activity3-core-actions]
 
 contexts:
   main:

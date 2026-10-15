@@ -226,20 +226,6 @@
     },
     {
       "block": 0,
-      "class": "bug",
-      "first_failure": null,
-      "interp": true,
-      "interp_diagram": "ACTIVITY",
-      "kind": "fa",
-      "lark": null,
-      "note": "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "activity/nakavu-98-pela661.puml",
-      "status": "ok"
-    },
-    {
-      "block": 0,
       "class": "unclassified",
       "first_failure": null,
       "interp": true,
@@ -292,34 +278,6 @@
       "oracle": true,
       "oracle_type": "ACTIVITY",
       "path": "activity/sisate-06-jage259.puml",
-      "status": "ok"
-    },
-    {
-      "block": 0,
-      "class": "bug",
-      "first_failure": null,
-      "interp": true,
-      "interp_diagram": "ACTIVITY",
-      "kind": "fa",
-      "lark": null,
-      "note": "`}` inside an open fork: closeGroup needs a group innermost (T21b's CommandCloseGroup3)",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "activity/veducu-71-tika634.puml",
-      "status": "ok"
-    },
-    {
-      "block": 0,
-      "class": "bug",
-      "first_failure": null,
-      "interp": true,
-      "interp_diagram": "ACTIVITY",
-      "kind": "fa",
-      "lark": null,
-      "note": "swimlane after the first activity (swimlane strategy, T21b's CommandSwimlane)",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "activity/velodu-59-sada437.puml",
       "status": "ok"
     },
     {
@@ -551,10 +509,10 @@
   "family": "activity3",
   "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
   "totals": {
-    "blocks": 780,
+    "blocks": 777,
     "diagram_mismatch": 1,
     "disagree": 0,
-    "fa": 5,
+    "fa": 2,
     "fr": 0,
     "oracle_accepted": 775,
     "raw_fr": 33,
