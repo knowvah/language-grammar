@@ -58,6 +58,16 @@ class Deadline:
         except TimeoutError as exc:
             raise BlockTimeout from exc
 
+    def prefix(self, pattern: Any, text: str) -> bool:
+        """Could ``text`` still be extended to a full match (``regex`` partial matching)?"""
+        remaining = self._limit - self._clock()
+        if remaining <= 0:
+            raise BlockTimeout
+        try:
+            return pattern.fullmatch(text, partial=True, timeout=remaining) is not None
+        except TimeoutError as exc:
+            raise BlockTimeout from exc
+
 
 def unit_end(body: list[Line], j: int) -> int:
     """End (exclusive) of the unit starting at ``j`` (``PSystemCommandFactory.java:288``)."""
@@ -113,4 +123,8 @@ def scan_join(
         joined = JOINER.join(line.trimmed for line in body[i:j])
         if deadline.fullmatch(start, joined):
             return j
+        # No extension of joined + JOINER can match, so no larger k can: stop early.
+        # Without this an uncapped join is O(n^2) per line on long blocks.
+        if not deadline.prefix(start, joined + JOINER):
+            return None
     return None
