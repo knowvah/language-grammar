@@ -441,18 +441,22 @@ def test_inline_case(body: str, accepted: bool) -> None:
 
 # Bare words that DESCRIPTION used to take before the single-line factories; with the
 # default dispatch the block now reaches the single-line model or fails.
+# Expected accepting factory (not model id: single-line family models replace the
+# embedded bases over time).
 SINGLE_LINE_WORDS = [
-    ("license", "embedded-license"),
-    ("version", "embedded-version"),
+    ("license", "PSystemLicenseFactory"),
+    ("version", "PSystemVersionFactory"),
     ("licenses", None),
     ("emojis", None),
 ]
 
 
-@pytest.mark.parametrize(("word", "model"), SINGLE_LINE_WORDS)
-def test_bare_words_are_left_to_the_single_line_factories(word: str, model: str | None) -> None:
-    verdict = accepts(models(), f"@startuml\n{word}\n@enduml\n")
-    assert (verdict["accepted"], verdict["model"]) == (model is not None, model)
+@pytest.mark.parametrize(("word", "factory"), SINGLE_LINE_WORDS)
+def test_bare_words_are_left_to_the_single_line_factories(word: str, factory: str | None) -> None:
+    resolved = models()
+    verdict = accepts(resolved, f"@startuml\n{word}\n@enduml\n")
+    accepting = resolved[verdict["model"]].factory if verdict["model"] else None
+    assert (verdict["accepted"], accepting) == (factory is not None, factory)
 
 
 # --- corpus: oracle verdicts ----------------------------------------------------------

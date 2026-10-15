@@ -794,3 +794,166 @@ Proposed diff: let a rule skip the gluing when its model's factory is not a
 ```
 with `Rule.advance` passing `glue_units=False` for rules of such models (the resolver
 knows each diagram model's `factory`).
+
+## meta-diagrams: Lark/TextMate emit no `@startsprites` block (non-blocking, emitters)
+
+`tools/emit/lark.py` `start_keyword` maps each diagram type to ONE keyword, and SPRITES is
+in `UML_TYPES`, so the ListSpriteDiagramFactory body only lands in `block_uml`. Upstream
+`DiagramType.findStartTypes` gives SPRITES to both `@startsprites` and `@startuml`
+(src/main/java/net/sourceforge/plantuml/core/DiagramType.java:193-200), and model/
+document.yaml maps `sprites: [ListSpriteDiagramFactory]`. The emitted grammar has no
+`block_sprites`, so Lark rejects every `@startsprites` block (jar and interpreter accept;
+the jar reports HELP, ListSpriteDiagram.java:59-61). TextMate's `_by_keyword`
+(tools/emit/textmate.py:196-200) has the same gap. Failing cases:
+tests/fixtures/meta-diagrams/pos/sprites-listsprites.puml, sprites-listsprite-upper.puml,
+sprites-common-commands.puml (Lark: "No terminal matches '@'"). No corpus block uses
+`@startsprites`. Proposed diff (keyword list per type; same idea in textmate.py):
+```diff
++EXTRA_KEYWORDS = {"SPRITES": ("sprites",)}  # DiagramType.java:193-200
++
++def start_keywords(diagram: str) -> tuple[str, ...]:
++    return (start_keyword(diagram), *EXTRA_KEYWORDS.get(diagram, ()))
+@@ def emit_lark(resolved: ResolvedModels) -> str:
+-        keyword = start_keyword(str(diagram.model.diagram))
+-        groups.setdefault(keyword, []).append(diagram.body)
++        for keyword in start_keywords(str(diagram.model.diagram)):
++            groups.setdefault(keyword, []).append(diagram.body)
+```
+
+## meta-diagrams: Lark `END_<kw>` requires `@end<kw>`; upstream any `@end...` closes a block (non-blocking, emitters)
+
+`tools/emit/lark.py` `_blocks` emits `END_{KW}: /[ \t]*@end{kw}[^\r\n]*/i` per block.
+Upstream closes a block at the first line where `StartUtils.isEndDirective` holds: `@` or
+`\` then `end`, any suffix (src/main/java/net/sourceforge/plantuml/utils/StartUtils.java:
+119-121; model/document.yaml END `[@\\]end.*`). Failing cases (Lark rejects, jar and
+interpreter accept): pdiff dbhum/m_ez/mezupo-66-nemu390.puml#0 and dbhum/m_ov/
+movuda-30-bife663.puml#0 (`@startregex` ... `@enderegex`), classified in
+reports/classify/meta-diagrams.yaml. Proposed diff (one shared end terminal):
+```diff
+-        rules.append(f"block_{keyword}: START_{upper} _NL{body} END_{upper}")
++        rules.append(f"block_{keyword}: START_{upper} _NL{body} END_BLOCK")
+         terminals.append(f"START_{upper}: /[ \\t]*@start{keyword}(?![A-Za-z0-9])[^\\r\\n]*/i")
+-        terminals.append(f"END_{upper}: /[ \\t]*@end{keyword}[^\\r\\n]*/i")
++    terminals.append("END_BLOCK: /[ \\t]*[@\\\\]end[^\\r\\n]*/i")
+```
+(`end` is case-sensitive upstream; keep `/i` only if the document model does.)
+
+## single-line: a preprocessor-truncated `@startuml` with no end line is accepted by embedded-welcome (non-blocking, interpreter/contract)
+
+pdiff dbhum/p_ev/pevoma-08-vido726.puml#0 and plantuml-ts class/pevoma-08-vido726.puml#0
+(classified `bug` in reports/classify/single-line.yaml): the jar's preprocessed source
+(BlockUml.getData, the L2 input) is the single line `@startuml`, with no end line. Every
+factory fails: PSystemWelcomeFactory needs exactly two lines
+(src/main/java/net/sourceforge/plantuml/eggs/PSystemWelcomeFactory.java:52), command
+factories report "Empty description". The interpreter sends the empty body to
+embedded-welcome's `empty` context with `lines = body + [end]` = zero lines
+(tools/interp/engine.py `_attempt`), and zero lines are accepted. No model can refuse
+zero lines, so this needs the engine. It cannot be a blanket rule: a truncated
+`@startditaa` / `@startmath` / `@startlatex` without an end line is accepted by the jar
+(PSystemBasicFactory.createSystem returns the system when the iterator runs out,
+src/main/java/net/sourceforge/plantuml/command/PSystemBasicFactory.java:101), and the
+single-line-ditaa/math/latex `empty` contexts reproduce that today.
+Proposed: an opt-in model key, e.g. `empty_needs_end: true` (diagram layer; schema +
+guide "Diagram dispatch"), set on embedded-welcome:
+```diff
+@@ def _attempt(
+         if _is_empty(block.body):
+-            if EMPTY_CONTEXT not in model.contexts:
++            if EMPTY_CONTEXT not in model.contexts or (
++                model.empty_needs_end and block.start and not block.end
++            ):
+                 return -1, block.start or Line(1, "", "")
+```
+Fallback without a schema change: `or (block.start and not block.end)` alone fixes pevoma,
+keeps tests/interp (360 passed on a scratch copy; a bare body with neither line stays
+accepted), but would turn a truncated D4 block into a false reject.
+
+## single-line: KEYWORD_FAMILY lacks crash, dot, ditaa, math, latex (non-blocking, report)
+
+tools/report/families.py assigns a block both sides reject by the `@start` keyword, and
+`crash`/`dot`/`ditaa`/`math`/`latex` are missing, so those blocks land in `unclassified`.
+vega crash/crash-when-parsing.puml#0 and crash/crash-when-finalizing.puml#0 (the T34
+checkpoint FAs, now rejected by both) are counted there instead of in `single-line`.
+```diff
+@@ KEYWORD_FAMILY: dict[str, str] = {
+     "timing": "timing",
++    "crash": "single-line",
++    "dot": "single-line",
++    "ditaa": "single-line",
++    "math": "single-line",
++    "latex": "single-line",
+ }
+```
+Related, informational: accepted crash blocks are reported by the oracle as BPM because
+CrashDiagram passes DiagramType.BPM to TitledDiagram
+(src/main/java/net/sourceforge/plantuml/crash/CrashDiagram.java:58), so vega
+crash/crash-not-crashing.puml#0 and crash/crash-when-drawing.puml#0 show a CRASH/BPM
+diagram mismatch in the misc-charts slice.
+
+## single-line: Lark collapses `\\"` in regex terminals (non-blocking, emitter)
+
+Lark's grammar loader runs `eval_escaping` on `/.../` literals, which doubles `\\` and then
+replaces `\"` by `"`, so the regex `\\"` (a backslash then a quote) reaches the lexer as
+`\"` (a quote). The DOT header's quoted id `"(?:[^"\\]|\\")*"`
+(directdot/PSystemDotFactory.java:54, model/diagrams/single-line-dot.yaml) therefore never
+matches an escaped quote in Lark: tests/fixtures/single-line/pos/dot-escaped-quote.puml
+(`digraph "a\"b" {`) is accepted by the jar and the interpreter, rejected by Lark. Writing
+the escaped backslash as a class survives the loader (verified with lark: `"a\"b"`
+accepted, `"a\b"` rejected):
+```diff
+# tools/emit/lark_regex.py, before the pattern is wrapped in /.../ (outside classes only)
++ESCAPED_BACKSLASH_QUOTE = re.compile(r'(?<!\\)((?:\\\\)*)\\\\"')
++def protect_backslash_quote(pattern: str) -> str:
++    """`\\"` -> `[\\]"`: Lark's eval_escaping would turn it into `\"`."""
++    return ESCAPED_BACKSLASH_QUOTE.sub(r'\1[\\\\]"', pattern)
+```
+
+## meta-diagrams: TextMate `CommandNope` matches the empty string and blanks every body line (non-blocking, emitters)
+
+CommandNope's parts `[\s\xa0]*` (gen `CommandNope`, every command factory via common) are
+emitted as the TextMate pattern `{"match": "(?i:[\\s ]*)"}`. Oniguruma matches it with
+length 0 at column 0 of every line, an earlier start than (or a tie listed before) any
+real rule, so vscode-textmate takes it and the line gets no scope at all: with the grammar
+emitted from model/ (`python -m tools.emit.build --only textmate`), `class Foo` inside
+`@startuml` and every `@startebnf`/`@startregex` body line tokenize as plain
+`source.plantuml`. Removing only that pattern restores the scopes (e.g. `rule = "a" ;`
+gets entity.name.function / keyword.operator, `(* note *)` comment.block). Upstream
+CommandNope matches blank lines only (command/CommandNope.java:46-58). Proposed diff
+(tools/emit/textmate.py, where `match` patterns are built): skip a `single` entry whose
+compiled parts match the empty string, or anchor it, e.g.
+```diff
++    if compile_part(entry["parts"]).fullmatch(""):
++        regex = f"^(?:{regex})$"   # a blank-line rule must not win at column 0 of a real line
+```
+Failing case: tokenize `@startebnf` / `rule = "a" ;` / `@endebnf`; tests/textmate fixtures do
+not catch it because the fixture model has no CommandNope.
+
+## board-files-git: same `{{` unit gluing in FilesDiagramFactory joins (non-blocking, interpreter)
+
+Same cause and fix as "json: do not glue `{{ ... }}` units in joins of non-command
+factories" above; FilesDiagramFactory reads plain lines too (filesdiagram/
+FilesDiagramFactory.java:54-58, jsondiagram/StyleExtractor.java:63-103). With a `{{`
+line inside a `<style>` block of `@startfiles` and a line after `</style>`, the glued unit
+runs to the end of the body, the `FilesStyleBlock*` joins (model/diagrams/
+board-files-git-files.yaml) cannot stop at `</style>`, and the block is rejected although
+the jar accepts it. Failing case (strict xfail):
+tests/fixtures/board-files-git/gap/files-curly-units.puml (jar: accepted; interpreter:
+rejected). No corpus block is affected. The json diff (`glue_units=False` for rules of
+non-command factories) fixes both.
+
+## single-line: test_description pins embedded-license / embedded-version as the accepting models (blocking the full suite)
+
+model/diagrams/single-line-license.yaml and single-line-version.yaml (T34) include the
+embedded models and replace them in dispatch (guide, "Diagram dispatch"), so
+tests/families/test_description.py::test_bare_words_are_left_to_the_single_line_factories
+[license-embedded-license] and [version-embedded-version] now see the family ids. The
+verdicts are unchanged (accepted).
+```diff
+--- a/tests/families/test_description.py
++++ b/tests/families/test_description.py
+@@ SINGLE_LINE_WORDS = [
+-    ("license", "embedded-license"),
+-    ("version", "embedded-version"),
++    ("license", "single-line-license"),
++    ("version", "single-line-version"),
+```
