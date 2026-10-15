@@ -40,8 +40,11 @@ class EmitterSpec:
         return emit(resolved)
 
 
+LOSSINESS_MARK = "Lossiness:"
+
 EMITTERS: dict[str, EmitterSpec] = {
     "lark": EmitterSpec("tools.emit.lark:emit_lark", "plantuml.lark"),
+    "w3c": EmitterSpec("tools.emit.w3c:emit_w3c", "plantuml.ebnf"),
     "textmate": EmitterSpec("tools.emit.textmate:emit_textmate_json", "plantuml.tmLanguage.json"),
 }
 
@@ -70,6 +73,12 @@ def build(names: Sequence[str], model_dir: Path, out_dir: Path) -> list[Path]:
     return written
 
 
+def _header_summary(path: Path) -> str:
+    """The emitter's ``Lossiness:`` header line, if it writes one (W3C does)."""
+    lines = path.read_text(encoding=ENCODING).splitlines()
+    return next((line.strip() for line in lines if LOSSINESS_MARK in line), "")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point; returns the process exit code."""
     parser = argparse.ArgumentParser(prog="python -m tools.emit.build")
@@ -88,7 +97,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(exc, file=sys.stderr)
         return EXIT_ERROR
     for path in written:
-        print(path)
+        print(path, _header_summary(path))
     return EXIT_OK
 
 

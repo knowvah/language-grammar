@@ -1,0 +1,42 @@
+schema_version: 1
+id: w3c_class
+layer: diagram
+diagram: CLASS
+contexts:
+  main:
+    - command: CommandIdent
+      provenance: {class: toy.CommandIdent}
+      kind: single
+      parts:
+        seq:
+          - {literal: class, ci: true}
+          - {regex: "\\s+"}
+          - {regex: "[A-Za-z_][A-Za-z0-9_]*"}
+    - command: CommandLook
+      provenance: {class: toy.CommandLook}
+      kind: single
+      parts:
+        seq:
+          - {literal: "say \"hi\"", ci: false}
+          - {regex: "foo(?=bar)"}
+          - opt: {regex: "\\p{L}+"}
+    - command: CommandBlock
+      provenance: {class: toy.CommandBlock}
+      kind: multiline
+      parts: {literal: note, ci: true}
+      end: {literal: end note, ci: true}
+    - command: CommandOpen
+      provenance: {class: toy.CommandOpen}
+      kind: single
+      parts: {literal: "{", ci: false}
+      push: inner
+  inner:
+    - command: CommandItem
+      provenance: {class: toy.CommandItem}
+      kind: single
+      parts: {star: {alt: [{literal: a, ci: false}, {literal: b, ci: false}]}}
+    - command: CommandClose
+      provenance: {class: toy.CommandClose}
+      kind: single
+      parts: {literal: "}", ci: false}
+      pop: true
