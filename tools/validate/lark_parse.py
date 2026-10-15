@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import atexit
 import multiprocessing as mp
+import re
 from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
 from pathlib import Path
@@ -25,7 +26,8 @@ from lark.exceptions import LarkError, UnexpectedInput
 DEFAULT_GRAMMAR = Path(__file__).resolve().parents[2] / "dist" / "plantuml.lark"
 DEFAULT_TIMEOUT_S = 10.0
 STARTUP_TIMEOUT_S = 60.0
-BODY_SUFFIX = "_body"
+LEXER = "dynamic_complete"
+BODY_NAME = re.compile(r"^(?P<diagram>.+)_body(?:_\d+)?$")
 READY = "ready"
 Verdict = dict[str, Any]
 
@@ -42,17 +44,20 @@ def make_verdict(
 
 
 def build_parser(grammar_path: Path) -> Lark:
-    """The Earley parser for a grammar file (dynamic lexer, ``regex`` module)."""
+    """The Earley parser for a grammar file (``dynamic_complete`` lexer, ``regex`` module)."""
     text = grammar_path.read_text(encoding="utf-8")
-    return Lark(text, start="start", parser="earley", lexer="dynamic", regex=True)
+    return Lark(text, start="start", parser="earley", lexer=LEXER, regex=True)
 
 
 def diagram_of(tree: Tree[Any]) -> str | None:
-    """Diagram type of the first ``<diagram>_body`` subtree, or None."""
+    """Diagram type of the first ``<diagram>_body[_N]`` subtree, or None.
+
+    The emitter suffixes ``_N`` when several models share one diagram type.
+    """
     for sub in tree.iter_subtrees_topdown():
-        name = str(sub.data)
-        if name.endswith(BODY_SUFFIX):
-            return name.removesuffix(BODY_SUFFIX).upper()
+        found = BODY_NAME.match(str(sub.data))
+        if found:
+            return found["diagram"].upper()
     return None
 
 

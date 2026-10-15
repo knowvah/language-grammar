@@ -4,8 +4,13 @@
 - **Impact**: never emit inline `(a|b)` or `x?` in a command rule. `_` rules are inlined in trees, so `<d>_body` diagram detection is unchanged.
 - **Confidence**: High
 
-## Observation: lazy regex terminals match only the empty string under dynamic Earley
-- **Context**: vega sequence blocks with `opt message received` / `alt REQUEST` are rejected by Lark (63/118 sequence, 57/62 nwdiag-packet, 14/28 class interp-accept/Lark-reject).
-- **Finding**: `CommandGrouping` has part `{regex: "(.*?)", name: COMMENT}` (after the `$` anchor was stripped by the emitter). Lark's dynamic lexer calls `regex.match` once at the position and only shortens the match for `dynamic_complete`; a lazy `.*?` returns the empty match, which is dropped (nullable guard), leaving " message received" unconsumed. `dynamic_complete` gives the same result (verified). Not fixed: not a time problem; needs a semantic decision (e.g. make a trailing lazy quantifier greedy when the stripped regex ended the line).
-- **Impact**: dominant Lark-vs-interpreter disagreement cause for family tasks to investigate.
-- **Confidence**: Medium (mechanism confirmed on CommandGrouping; share of other disagreements not measured)
+## Observation: regex terminals are matched once; the lexer never extends them
+- **Context**: vega Lark-vs-interpreter disagreements (142 of 301 blocks before, 1 after).
+- **Finding**: Lark's dynamic lexer takes ONE `regex.match` at a position; `dynamic_complete` only retries *shorter* prefixes of that match. Everything upstream regex backtracking would do must therefore be reachable by shortening a maximal first match. Emitter now (tools/emit/lark.py): (1) `greedy()` turns every lazy quantifier greedy (`(.*?)`, `<<.+?>>`, `GENDER (...)*?`); (2) `prefer_longest()` orders plain alternations longest first (`par|partition`, `--|--++`); (3) the last consumer of a command line carries `(?=[ \t]*(?:\r?\n|\Z))` (`tail()`, one variant per possible last element when trailing parts are skippable) so a first alternative (`"..."|.*`) cannot shadow the longer one; (4) comment lines (`'`, `/' '/`) are blank lines; (5) a body needs one real command unless the model declares an `empty` context. `lark_parse.LEXER = "dynamic_complete"` is required for (1)-(3).
+- **Impact**: do not revert LEXER to `dynamic`; the lookahead is NOT redundant with greedy (removing `tail()` re-breaks sub/repro2 `card "x" 'c`). `\Z` inside the lookahead is true on the shortened prefixes dynamic_complete retries, so it only filters the first match.
+- **Confidence**: High
+
+## Observation: `diagram_of` needs the `_body_N` suffix
+- **Context**: many models share one `diagram:` (psystem-* are SEQUENCE), so the emitter names bodies `sequence_body`, `sequence_body_2`, ...
+- **Finding**: `lark_parse.diagram_of` matched only the exact `_body` suffix, so the diagram came back None for every later model. Now `^(.+)_body(?:_\d+)?$`. The reported diagram is still whichever body Earley's ambiguity resolution picks (e.g. `Alice -> Bob : x` reports ACTIVITY), not a dispatch result.
+- **Confidence**: High

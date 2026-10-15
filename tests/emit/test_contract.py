@@ -40,8 +40,9 @@ def uml(*lines: str) -> str:
 
 def test_lark_ci_regex_terminal_has_i_flag_and_absent_does_not(models: ResolvedModels) -> None:
     lines = lark_emit.emit_lark(models).splitlines()
-    assert "class_command_ci_regex: /abc/i" in lines
-    assert "class_command_cs_regex: /xyz/" in lines
+    rules = dict(line.split(": ", 1) for line in lines if line.startswith("class_command_"))
+    assert rules["class_command_ci_regex"] == "/(?:abc)" + lark_emit.EOL_LOOKAHEAD + "/i"
+    assert rules["class_command_cs_regex"] == "/(?:xyz)" + lark_emit.EOL_LOOKAHEAD + "/"
 
 
 def test_lark_regex_ci_controls_case(runner: LarkRunner) -> None:

@@ -47,6 +47,41 @@ contexts:
         seq:
           - {literal: path, ci: false}
           - {regex: "\\s+/\\w+/(?:\\w+)"}
+    - command: CommandTitle
+      provenance: {class: toy.CommandTitle}
+      kind: single
+      parts:
+        seq:
+          - {literal: title, ci: true}
+          - {regex: "\\s+"}
+          - {regex: "(.*?)", name: TITLE}
+    - command: CommandKind
+      provenance: {class: toy.CommandKind}
+      kind: single
+      parts:
+        seq:
+          - {regex: "(par|partition)", ci: true}
+          - {regex: "\\s+"}
+          - {regex: "\\w+"}
+    - command: CommandStereo
+      provenance: {class: toy.CommandStereo}
+      kind: single
+      parts:
+        seq:
+          - {literal: sx, ci: true}
+          - {regex: "\\s+"}
+          - {regex: "(\\<\\<.+?\\>\\>)"}
+          - {regex: "\\s*"}
+          - {literal: "!", ci: false}
+    - command: CommandCard
+      provenance: {class: toy.CommandCard}
+      kind: single
+      parts:
+        seq:
+          - {literal: card, ci: true}
+          - {regex: "\\s+"}
+          - {regex: "(\"[^\"]+\"|.*)"}
+          - opt: {literal: "!", ci: false}
   pkg:
     - command: CommandInnerClass
       provenance: {class: toy.CommandInnerClass}

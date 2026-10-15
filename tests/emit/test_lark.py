@@ -99,7 +99,9 @@ def test_emit_structure(grammar_text: str) -> None:
     lines = grammar_text.splitlines()
     assert "block: block_uml | block_salt" in lines
     assert 'class_command_create_class: ("class"i /\\s+/ CLASS_IDENT)' in lines
-    assert "CLASS_IDENT: /[\\p{L}_][\\p{L}\\p{N}_]*/" in lines
+    ident = "CLASS_IDENT: /(?:[\\p{L}_][\\p{L}\\p{N}_]*)" + emitter.EOL_LOOKAHEAD + "/"
+    assert ident in lines
+    assert "CLASS_IDENT_2: /[\\p{L}_][\\p{L}\\p{N}_]*/" in lines
     assert not any(line.startswith("%ignore") for line in lines)
 
 
@@ -118,6 +120,99 @@ def test_named_terminal_reused_and_disambiguated() -> None:
     again = diagram.part({"regex": "a+", "name": "n"})
     other = diagram.part({"regex": "b+", "name": "n"})
     assert (first, again, other) == ("CLASS_N", "CLASS_N", "CLASS_N_2")
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        ("(par|partition)x", "(partition|par)x"),
+        ("(?:a|bb)", "(?:bb|a)"),
+        (r"(\+\+|--|--\+\+)", r"(--\+\+|\+\+|--)"),
+        ("(a|b)", "(a|b)"),
+        ("(?<!else)(x|yy)", "(?<!else)(yy|x)"),
+        ("(a|b+)", "(a|b+)"),
+    ],
+)
+def test_prefer_longest(pattern: str, expected: str) -> None:
+    assert emitter.prefer_longest(pattern) == expected
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        ("(.*?)", "(.*)"),
+        ("a+?b", "a+b"),
+        ("a??", "a?"),
+        ("x{1,2}?", "x{1,2}"),
+        ("(?:a|b)*?", "(?:a|b)*"),
+        ("[*?]x", "[*?]x"),
+        ("\\??", "\\??"),
+        ("a\\\\*?", "a\\\\*"),
+        ("(?=a)b", "(?=a)b"),
+    ],
+)
+def test_greedy(pattern: str, expected: str) -> None:
+    assert emitter.greedy(pattern) == expected
+
+
+def test_regex_terminal_eol_wraps_pattern_before_nullable_guard() -> None:
+    assert emitter.regex_terminal("a|b", eol=True) == (
+        "/(?:a|b)" + emitter.EOL_LOOKAHEAD + "/",
+        False,
+    )
+    literal, nullable = emitter.regex_terminal("a*", eol=True)
+    assert nullable is True
+    assert literal.startswith("/" + emitter.NULLABLE_PREFIX + "(?:a*)(?=")
+
+
+@pytest.mark.parametrize(
+    ("part", "expected"),
+    [
+        ({"literal": "x"}, False),
+        ({"opt": {"literal": "x"}}, True),
+        ({"star": {"literal": "x"}}, True),
+        ({"plus": {"literal": "x"}}, False),
+        ({"plus": {"opt": {"literal": "x"}}}, True),
+        ({"seq": [{"opt": {"literal": "x"}}, {"regex": "a*"}]}, True),
+        ({"seq": [{"opt": {"literal": "x"}}, {"literal": "y"}]}, False),
+        ({"alt": [{"literal": "y"}, {"regex": "a*"}]}, True),
+        ({"regex": "^a+$"}, False),
+    ],
+)
+def test_nullable_part(part: dict, expected: bool) -> None:
+    assert emitter.nullable_part(part) is expected
+
+
+def test_tail_puts_eol_lookahead_on_every_possible_last_regex() -> None:
+    part = {"seq": [{"regex": "a+"}, {"regex": "b+"}, {"opt": {"regex": "c+"}}]}
+    diagram, ref = _diagram_tail(part)
+    eol = emitter.EOL_LOOKAHEAD
+    assert ref == "_a"
+    assert diagram.rules == [
+        f"_a: (/a+/ /b+/ /(?:c+){eol}/) | (/a+/ /(?:b+){eol}/)",
+    ]
+
+
+def test_tail_of_alt_star_plus_opt() -> None:
+    eol = emitter.EOL_LOOKAHEAD
+    alt = [{"regex": "a"}, {"plus": {"regex": "b"}}, {"star": {"regex": "c"}}]
+    diagram, ref = _diagram_tail({"alt": alt})
+    assert ref == "_a"
+    assert diagram.rules == [
+        f"_o: /c/* /(?:c){eol}/ |",
+        f"_a: /(?:a){eol}/ | /b/* /(?:b){eol}/ | _o",
+    ]
+
+
+def test_tail_of_skippable_star_element_is_plus_form() -> None:
+    diagram, ref = _diagram_tail({"seq": [{"literal": "k"}, {"star": {"literal": "x"}}]})
+    assert ref == "_a"
+    assert diagram.rules == ['_a: ("k" "x"* "x") | ("k")']
+
+
+def _diagram_tail(part: dict) -> tuple[emitter._Diagram, str]:
+    diagram = emitter._Diagram(resolve(load_dir(TOY))["toy_class"], emitter._Names())
+    return diagram, diagram.tail(part)
 
 
 def _diagram(part: dict) -> tuple[emitter._Diagram, str]:
@@ -241,9 +336,48 @@ def test_start_keyword_must_match_diagram(runner: LarkRunner) -> None:
     assert runner.parse("@startsalt\nclass A\n@endsalt")["status"] == REJECT
 
 
-def test_crlf_and_empty_block(runner: LarkRunner) -> None:
+def test_crlf_block(runner: LarkRunner) -> None:
     assert runner.parse("@startuml\r\nclass A\r\n@enduml\r\n")["accepted"] is True
-    assert runner.parse("@startuml\n@enduml")["accepted"] is True
+
+
+def test_empty_or_comment_only_body_rejected_without_empty_context(runner: LarkRunner) -> None:
+    for src in ("@startuml\n@enduml", "@startuml\n\n  \n@enduml", "@startuml\n' c\n@enduml"):
+        assert runner.parse(src)["status"] == REJECT
+
+
+def test_empty_context_accepts_empty_body(tmp_path: Path) -> None:
+    (tmp_path / "m.yaml").write_text(
+        "schema_version: 1\nid: m\nlayer: diagram\ndiagram: HELP\n"
+        "contexts:\n  main: []\n  empty: []\n",
+        encoding="utf-8",
+    )
+    text = emitter.emit_lark(resolve(load_dir(tmp_path)))
+    parser = Lark(text, parser="earley", lexer=lark_parse.LEXER, regex=True)
+    assert parser.parse("@startuml\n\n@enduml").data == "start"
+
+
+def test_comment_lines_are_accepted_like_blank_lines(runner: LarkRunner) -> None:
+    src = uml("' line comment", "class A", "  /' long", "comment '/", "/' one '/")
+    assert runner.parse(src)["accepted"] is True
+
+
+@pytest.mark.parametrize("line", ["title hello brave world", "title x 'not a comment"])
+def test_trailing_lazy_regex_reaches_line_end(runner: LarkRunner, line: str) -> None:
+    assert runner.parse(uml(line))["accepted"] is True
+
+
+def test_alternation_prefix_does_not_shadow_longer_alternative(runner: LarkRunner) -> None:
+    assert runner.parse(uml("partition x"))["accepted"] is True
+    assert runner.parse(uml("par x"))["accepted"] is True
+
+
+def test_lazy_stereotype_spans_several_stereotypes(runner: LarkRunner) -> None:
+    assert runner.parse(uml("sx <<a>> <<b>> !"))["accepted"] is True
+
+
+@pytest.mark.parametrize("line", ['card "a b" tail', 'card "a b"', 'card "a b"!', "card plain!"])
+def test_first_alternative_does_not_shadow_line_end(runner: LarkRunner, line: str) -> None:
+    assert runner.parse(uml(line))["accepted"] is True
 
 
 def test_empty_input_rejected(runner: LarkRunner) -> None:
@@ -339,6 +473,19 @@ def test_parse_text_lark_error_is_error_status() -> None:
             raise LarkError("boom")
 
     assert lark_parse.parse_text(Boom(), "x")["status"] == "error"  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("rule", "diagram"),
+    [
+        ("sequence_body", "SEQUENCE"),
+        ("sequence_body_18", "SEQUENCE"),
+        ("chen_eer_body_2", "CHEN_EER"),
+    ],
+)
+def test_diagram_of_accepts_numbered_body_rules(rule: str, diagram: str) -> None:
+    parser = Lark(f'start: {rule}\n{rule}: "x"', parser="earley")
+    assert lark_parse.diagram_of(parser.parse("x")) == diagram
 
 
 def test_diagram_of_without_body_is_none() -> None:
