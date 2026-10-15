@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from tools.validate import oracle
-from tools.validate.oracle import OracleError, oracle_verdicts, preproc
+from tools.validate.oracle import ORACLE_VERSION, OracleError, oracle_verdicts, preproc
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PIN = "pin123"
@@ -82,13 +82,13 @@ def test_only_misses_are_sent(tmp_path):
     assert jvm.batches == [[str(b)]]
 
 
-def test_cache_key_is_content_sha_and_pin(tmp_path):
+def test_cache_key_is_content_sha_pin_and_oracle_version(tmp_path):
     a = _file(tmp_path, "a.puml")
     cache = tmp_path / "c"
     oracle_verdicts([a], runner=FakeJvm({str(a): _ok(a)}), cache_dir=cache, pin=PIN)
 
     digest = hashlib.sha256(a.read_bytes()).hexdigest()
-    assert [p.name for p in cache.iterdir()] == [f"{digest}-{PIN}.json"]
+    assert [p.name for p in cache.iterdir()] == [f"{digest}-{PIN}-o{ORACLE_VERSION}.json"]
 
 
 def test_content_change_or_pin_change_invalidates(tmp_path):
@@ -260,6 +260,15 @@ def test_real_jvm_fixtures(tmp_path):
     assert "class Foo" in by["define.puml"][0]["preproc"]
     assert "---" not in by["yaml_header.puml"][0]["preproc"]
     assert by["yaml_bad.puml"][0]["error_line"] == 5
+
+
+@pytest.mark.corpus
+def test_relative_include_resolves_against_the_source_file(tmp_path):
+    """Mirrors SourceFileReader.java:79: !include is relative to the file, not the JVM cwd."""
+    source = FIXTURES / "incdir" / "include_rel.puml"
+    [verdict] = oracle_verdicts([source], cache_dir=tmp_path)[str(source)]
+    assert verdict["accepted"] is True
+    assert "class Inc" in verdict["preproc"]
 
 
 def test_zero_block_file_is_cached_as_empty_list(tmp_path):

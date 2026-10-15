@@ -23,6 +23,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = REPO_ROOT / "reports" / "oracle-cache"
 BUILD_DIR = REPO_ROOT / "build" / "java"
 PIN_FILE = REPO_ROOT / "upstream-pin.json"
+# Bump when Oracle.java verdict semantics change, so cached verdicts are not reused.
+# 2: resolve !include relative to the source file (SourceFileReader.java:79).
+ORACLE_VERSION = 2
 MAIN_CLASS = "Oracle"
 BUILD_HINT = "python -m tools.extract.build"
 NO_VERDICT = "no verdict returned by oracle JVM"
@@ -105,7 +108,8 @@ def _error_verdict(message: str) -> list[BlockVerdict]:
 
 
 def _cache_file(cache_dir: Path, path: Path, pin: str) -> Path:
-    return cache_dir / f"{hashlib.sha256(path.read_bytes()).hexdigest()}-{pin}.json"
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return cache_dir / f"{digest}-{pin}-o{ORACLE_VERSION}.json"
 
 
 def _load(cache_file: Path) -> list[BlockVerdict] | None:

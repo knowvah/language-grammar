@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -11,11 +12,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.sourceforge.plantuml.BlockUml;
+import net.sourceforge.plantuml.FileSystem;
 import net.sourceforge.plantuml.SourceStringReader;
 import net.sourceforge.plantuml.TitledDiagram;
 import net.sourceforge.plantuml.core.Diagram;
 import net.sourceforge.plantuml.error.PSystemError;
 import net.sourceforge.plantuml.preproc.Defines;
+import net.sourceforge.plantuml.security.SFile;
 import net.sourceforge.plantuml.text.StringLocated;
 
 /**
@@ -76,8 +79,12 @@ public final class Oracle {
 
         static String forFile(String path) {
             try {
-                final String text = blankYamlHeader(Files.readString(Path.of(path), StandardCharsets.UTF_8));
-                final List<BlockUml> blocks = new SourceStringReader(Defines.createEmpty(), text,
+                final File file = new File(path);
+                final String text = blankYamlHeader(Files.readString(file.toPath(), StandardCharsets.UTF_8));
+                // Mirror SourceFileReader (SourceFileReader.java:72,79): file-name defines and
+                // !include/!import resolution relative to the source file's directory.
+                FileSystem.getInstance().setCurrentDir(SFile.fromFile(file.getAbsoluteFile().getParentFile()));
+                final List<BlockUml> blocks = new SourceStringReader(Defines.createWithFileName(file), text,
                         Collections.<String>emptyList()).getBlocks();
                 final List<String> json = new ArrayList<>();
                 for (int i = 0; i < blocks.size(); i++)
