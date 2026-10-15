@@ -1,6 +1,8 @@
 # language-grammar
 Formal grammar definition for the PlantUML language, designed for syntax parsing, validation, and editor integration.
 
+**Status:** in progress — see [CHANGELOG](CHANGELOG.md).
+
 ## Objectives
 - Build upon the excellent work from [vscode-plantuml](https://github.com/qjebbs/vscode-plantuml).
 - Become the official source for the PlantUML syntax used by [GitHub Linguist](https://github.com/github-linguist/linguist/blob/main/vendor/README.md).
