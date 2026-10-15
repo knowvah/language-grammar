@@ -13,8 +13,14 @@ Mirrors, at 97a5992:
 * ``EmbeddedDiagram.java:257-300`` and ``:77-78``: ``{{`` / ``{{type`` ... ``}}`` groups
   are glued into one multiline unit (``PSystemCommandFactory.java:288-307``).
 
-Known gap: ``StringLocated.removeInnerComment`` (``ReadFilterQuoteComment.java:76``)
-strips inline ``/' ... '/`` from kept lines; it is not reproduced.
+* ``BlockUmlBuilder.java:100-135`` (``split_blocks``): a file splits into blocks; a start
+  line opens a block (discarding any unterminated one, ``:101-104``), the first end line
+  closes it (``:126-135``), and text outside blocks is ignored (``:113``).
+
+Known gaps: ``@pause`` / ``@unpause`` / ``!exit`` (``BlockUmlBuilder.java:105-125``) are
+not modelled by ``split_blocks``, which also sees comments the preprocessor would remove.
+``StringLocated.removeInnerComment`` (``ReadFilterQuoteComment.java:76``) strips inline
+``/' ... '/`` from kept lines; it is not reproduced.
 """
 
 from __future__ import annotations
@@ -48,11 +54,12 @@ class Line:
 
 @dataclass(frozen=True)
 class Block:
-    """A block split into its start line, optional keyword, and command-loop body."""
+    """A block split into its start line, optional keyword, command-loop body, end line."""
 
     start: Line | None
     keyword: str | None
     body: list[Line]
+    end: Line | None = None
 
 
 def trin(text: str) -> str:
@@ -152,6 +159,23 @@ def split_block(block_text: str) -> Block:
     body: list[Line] = []
     for line in strip_comments(rest):
         if is_end_directive(line.text):
-            break
+            return Block(start, keyword, body, line)
         body.append(line)
     return Block(start, keyword, body)
+
+
+def split_blocks(text: str) -> list[str]:
+    """The ``@start...@end`` blocks of a file, as ``BlockUmlBuilder`` finds them."""
+    blocks: list[str] = []
+    current: list[str] | None = None
+    for raw in text.split("\n"):
+        line = raw.rstrip("\r")
+        if is_start_directive(line):
+            current = []
+        if current is None:
+            continue
+        current.append(line)
+        if is_end_directive(line):
+            blocks.append("\n".join(current))
+            current = None
+    return blocks

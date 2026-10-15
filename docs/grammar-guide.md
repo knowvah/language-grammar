@@ -136,6 +136,20 @@ Mirrors `PSystemBuilder.java:133-200` (factory order) and `:257-287` (try loop) 
   model therefore sets the same `factory` and `include`s the generated model it
   extends; it replaces the generated one in dispatch without editing `start_map`.
   Two top models for one factory is a load error.
+* Keyword lookup mirrors `DiagramType.findStartTypes`: exact key, then a key that is a
+  prefix of the keyword (`@startumlfoo` → `uml`). A keyword no key covers is
+  `PSystemUnsupported` (`PSystemErrorUtils.java:58-59`, `PSystemBuilder.java:283-284`),
+  which is not a `PSystemError`: the verdict is accepted with `diagram`/`model` `None`,
+  as the oracle reports it.
+* An explicit `start_map` argument to `accepts` overrides the document model; entries
+  may name factories or model ids.
+* Empty bodies: command factories reject a body with no non-blank line at the start
+  line. A diagram model that accepts an empty body declares an `empty` context; the
+  body's lines followed by the `@end` line run through it (`embedded-welcome`,
+  `embedded-json`, …).
+* `Verdict.diagram` is the accepting model's `diagram` (compare with the oracle's
+  `diagram_type`, which is `null` for non-`TitledDiagram` results); `Verdict.model` is
+  its id.
 
 ### Ids and files
 
@@ -156,9 +170,15 @@ violation with file and JSON pointer, unexpanded macro, uncompilable regex, id/s
 mismatch, duplicate id, unknown include/ref/push target, cycle).
 
 * `Model` (frozen dataclass): `id`, `layer`, `path`, `diagram`, `include`, `variables`,
-  `contexts` — Parts and entries are plain dicts exactly as in the YAML.
+  `contexts`, `factory` (str or None), `start_map` (dict keyword → list of factory
+  names; empty unless `layer: document`). Parts and entries are plain dicts exactly as
+  in the YAML.
 * `ResolvedModels = dict[str, ResolvedModel]`; `ResolvedModel` has `id`, `layer`, `path`,
-  `diagram`, `variables`, `contexts`, with no `include`/`ref` anywhere. Walk Parts
+  `diagram`, `variables`, `contexts`, `factory`, `start_map`, `includes` (tuple of the
+  transitive model-level include ids, depth-first, deduplicated), with no
+  `include`/`ref` inside contexts or variables. `top_models(resolved) -> dict[factory,
+  id]` (`tools.model.resolve`) gives the top model per factory; `resolve()` calls it, so
+  two top models for one factory raise `ModelError` and fail `load --check`. Walk Parts
   recursively over the keys `seq`/`alt` (lists), `opt`/`star`/`plus` (single Part),
   and the leaves `regex`/`literal`. Resolved structures may share sub-objects: treat as
   read-only.
@@ -187,5 +207,15 @@ Decision D3 splits PlantUML syntax into layers, each a set of models:
 | `preproc` | Preprocessor directives (`!include`, `!define`, `!if`, ...). |
 | `diagram` | One model per diagram type; `diagram` names the upstream `DiagramType`. |
 | `shared` | Pieces reused by several models (colors, creole, arrows). |
+
+**Raw mode (L1 hook).** `accepts(models, block, raw=True)` takes an unpreprocessed
+block: if a `layer: preproc` model exists, every body line (after comment removal) is
+first offered to it, with its own context stack starting at `main`; kinds, `multiline`,
+`join`, `push`/`pop`/`set` behave exactly as for diagram rules. Matched lines are
+consumed; the remaining lines form the body the diagram models see. Upstream
+preprocesses the whole block before any factory runs (`BlockUmlBuilder.java:95`), so
+this filter runs once per block. A block whose non-blank lines are all consumed is an
+empty body. With `raw=False` (default; L2 input is already preprocessed) the preproc
+model is ignored.
 
 ## Troubleshooting

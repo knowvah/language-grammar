@@ -145,6 +145,8 @@ def _to_model(doc: dict[str, Any], path: Path) -> Model:
         include=list(doc.get("include", [])),
         variables=doc.get("variables", {}),
         contexts=doc.get("contexts", {}),
+        factory=doc.get("factory"),
+        start_map={k: list(v) for k, v in doc.get("start_map", {}).items()},
     )
 
 

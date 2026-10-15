@@ -36,7 +36,32 @@ def resolve(models: dict[str, Model]) -> ResolvedModels:
     """Inline every ``include`` and ``ref``; raise ``ModelError`` on the first problem."""
     _check_model_includes(models)
     resolver = _Resolver(models)
-    return {mid: resolver.resolve_model(mid) for mid in models}
+    resolved = {mid: resolver.resolve_model(mid) for mid in models}
+    top_models(resolved)
+    return resolved
+
+
+def top_models(resolved: ResolvedModels) -> dict[str, str]:
+    """``factory -> id`` of the top model per factory (docs/grammar-guide.md, dispatch).
+
+    The top model is the one no other model declaring the same ``factory`` includes,
+    transitively. Two tops for one factory raise ``ModelError`` naming both ids.
+    """
+    by_factory: dict[str, list[ResolvedModel]] = {}
+    for m in resolved.values():
+        if m.factory is not None:
+            by_factory.setdefault(m.factory, []).append(m)
+    tops: dict[str, str] = {}
+    for factory, group in by_factory.items():
+        included = {i for m in group for i in m.includes}
+        for m in group:
+            if m.id in included:
+                continue
+            if factory in tops:
+                message = f"two top models for factory '{factory}': '{tops[factory]}' and '{m.id}'"
+                raise ModelError(message, str(m.path) if m.path else m.id, "/factory")
+            tops[factory] = m.id
+    return tops
 
 
 def _error(model: Model, pointer: str, message: str) -> ModelError:
@@ -92,7 +117,17 @@ class _Resolver:
             n: self._variable(self._owner(self.find_var(mid, n)), n, ()) for n in var_names
         }
         contexts = {n: self.expand_context(mid, n, ()) for n in ctx_names}
-        return ResolvedModel(mid, model.layer, model.path, model.diagram, variables, contexts)
+        return ResolvedModel(
+            mid,
+            model.layer,
+            model.path,
+            model.diagram,
+            variables,
+            contexts,
+            factory=model.factory,
+            start_map=model.start_map,
+            includes=tuple(scope[1:]),
+        )
 
     @staticmethod
     def _owner(owner: str | None) -> str:

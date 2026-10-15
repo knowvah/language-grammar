@@ -8,7 +8,7 @@ import pytest
 
 from tools.model import Model, ModelError
 from tools.model.load import load_dir
-from tools.model.resolve import resolve
+from tools.model.resolve import resolve, top_models
 
 from .test_load import FIXTURES
 
@@ -114,3 +114,48 @@ def test_diamond_include_is_not_a_cycle() -> None:
     a = model("a", include=["b", "c"], contexts={"main": [entry({"ref": "V"})]})
     out = resolve({"a": a, "b": b, "c": c, "d": d})
     assert out["a"].contexts["main"][0]["parts"] == {"regex": "d"}
+
+
+def diagram(mid: str, factory: str, **kw: Any) -> Model:
+    return Model(id=mid, layer="diagram", diagram="CLASS", factory=factory, **kw)
+
+
+def test_factory_start_map_and_transitive_includes_are_copied() -> None:
+    doc = Model(id="doc", layer="document", start_map={"uml": ["F"]})
+    base = diagram("base", "F")
+    mid = model("mid", include=["base"])
+    top = diagram("top", "F", include=["mid"])
+    out = resolve({"doc": doc, "base": base, "mid": mid, "top": top})
+    assert out["doc"].start_map == {"uml": ["F"]}
+    assert out["doc"].factory is None
+    assert out["top"].factory == "F"
+    assert out["top"].includes == ("mid", "base")
+    assert out["base"].includes == ()
+
+
+def test_top_models_picks_the_transitively_including_model() -> None:
+    base = diagram("base", "F")
+    mid = model("mid", include=["base"])
+    top = diagram("top", "F", include=["mid"])
+    other = diagram("other", "G")
+    out = resolve({"base": base, "mid": mid, "top": top, "other": other})
+    assert top_models(out) == {"F": "top", "G": "other"}
+
+
+def test_two_top_models_for_one_factory_is_an_error_naming_both() -> None:
+    a = diagram("ActivityA", "ActivityDiagramFactory")
+    b = diagram("ActivityB", "ActivityDiagramFactory")
+    with pytest.raises(
+        ModelError, match="two top models for factory 'ActivityDiagramFactory'"
+    ) as info:
+        resolve({"ActivityA": a, "ActivityB": b})
+    assert "'ActivityA'" in str(info.value)
+    assert "'ActivityB'" in str(info.value)
+    assert info.value.pointer == "/factory"
+
+
+def test_distinct_factories_sharing_a_diagram_type_are_both_tops() -> None:
+    a = diagram("act", "ActivityDiagramFactory")
+    b = diagram("act3", "ActivityDiagramFactory3")
+    out = resolve({"act": a, "act3": b})
+    assert top_models(out) == {"ActivityDiagramFactory": "act", "ActivityDiagramFactory3": "act3"}

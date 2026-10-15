@@ -185,3 +185,31 @@ def test_factory_and_start_map_keys_are_layer_scoped(tmp_path: Path) -> None:
     with pytest.raises(ModelLoadError) as exc:
         load_dir(tmp_path)
     assert {e.file.endswith("s.yaml") for e in exc.value.errors} == {True}
+
+
+def test_factory_and_start_map_are_carried_on_the_model(tmp_path: Path) -> None:
+    (tmp_path / "doc.yaml").write_text(
+        "schema_version: 1\nid: doc\nlayer: document\n"
+        "start_map: {uml: [SequenceDiagramFactory, ClassDiagramFactory]}\n"
+    )
+    (tmp_path / "d.yaml").write_text(
+        "schema_version: 1\nid: d\nlayer: diagram\ndiagram: CLASS\nfactory: ClassDiagramFactory\n"
+    )
+    models = load_dir(tmp_path)
+    assert models["doc"].start_map == {"uml": ["SequenceDiagramFactory", "ClassDiagramFactory"]}
+    assert models["doc"].factory is None
+    assert models["d"].factory == "ClassDiagramFactory"
+    assert models["d"].start_map == {}
+
+
+def test_cli_check_fails_on_two_top_models_for_one_factory(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for mid in ("x1", "x2"):
+        (tmp_path / f"{mid}.yaml").write_text(
+            f"schema_version: 1\nid: {mid}\nlayer: diagram\ndiagram: CLASS\nfactory: XFactory\n"
+        )
+    assert main(["--check", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert "two top models for factory 'XFactory'" in err
+    assert "'x1'" in err and "'x2'" in err

@@ -10,6 +10,7 @@ from tools.interp.source import (
     is_end_directive,
     is_start_directive,
     split_block,
+    split_blocks,
     start_keyword,
     strip_comments,
     trin,
@@ -114,3 +115,24 @@ def test_split_block_empty_text() -> None:
     block = split_block("")
     assert block.start is None
     assert [ln.number for ln in block.body] == [1]
+
+
+def test_split_blocks_mirrors_block_uml_builder() -> None:
+    text = "intro text\n@startuml\nA\n@startuml\nB\n@enduml\nbetween\n\\startdot x\nC\n\\enddot\n"
+    assert split_blocks(text) == ["@startuml\nB\n@enduml", "\\startdot x\nC\n\\enddot"]
+
+
+def test_split_blocks_drops_unterminated_and_non_directives() -> None:
+    assert split_blocks("@startuml\nA\n") == []
+    assert split_blocks("@STARTUML\nA\n@ENDUML") == []
+    assert split_blocks("@start\nA\n@end") == []
+    assert split_blocks("@enduml\n@startmindmap\r\n* a\r\n@endwbs\r\n") == [
+        "@startmindmap\n* a\n@endwbs"
+    ]
+
+
+def test_split_block_records_the_end_line() -> None:
+    block = split_block("@startuml\nA\n@endmindmap\nrest")
+    assert block.end is not None
+    assert (block.end.number, block.end.text) == (3, "@endmindmap")
+    assert split_block("@startuml\nA").end is None

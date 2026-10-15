@@ -15,31 +15,44 @@ def test_verdict_has_exactly_the_i3_keys(models: ResolvedModels) -> None:
     verdict = accepts(models, uml("alpha x"))
     assert verdict == {
         "accepted": True,
-        "diagram": "seqtoy",
+        "diagram": "SEQUENCE",
         "first_failure": None,
+        "model": "seqtoy",
         "status": "ok",
     }
 
 
 def test_block_matching_only_second_diagram_is_accepted_by_it(models: ResolvedModels) -> None:
     verdict = accepts(models, uml("beta x", "beta y"))
-    assert (verdict["accepted"], verdict["diagram"], verdict["status"]) == (True, "classtoy", "ok")
+    assert (verdict["accepted"], verdict["diagram"], verdict["status"]) == (True, "CLASS", "ok")
 
 
 def test_earlier_diagram_wins_when_both_accept(models: ResolvedModels) -> None:
     verdict = accepts(models, uml("title hello"))
-    assert verdict["diagram"] == "seqtoy"
+    assert verdict["model"] == "seqtoy"
 
 
 def test_start_map_order_overrides_default_order(models: ResolvedModels) -> None:
     verdict = accepts(models, uml("title hi"), start_map={"uml": ["classtoy", "seqtoy"]})
-    assert verdict["diagram"] == "classtoy"
+    assert verdict["model"] == "classtoy"
     prefixed = accepts(models, uml("title hi"), start_map={"@startuml": ["classtoy"]})
-    assert prefixed["diagram"] == "classtoy"
+    assert prefixed["model"] == "classtoy"
 
 
-def test_start_map_without_keyword_has_no_candidates(models: ResolvedModels) -> None:
+def test_start_map_without_keyword_is_unsupported_not_an_error(models: ResolvedModels) -> None:
+    # PSystemUnsupported is not a PSystemError (PSystemBuilder.java:283-284): accepted.
     verdict = accepts(models, uml("alpha x"), start_map={"salt": ["seqtoy"]})
+    assert verdict == {
+        "accepted": True,
+        "diagram": None,
+        "first_failure": None,
+        "model": None,
+        "status": "ok",
+    }
+
+
+def test_start_map_with_known_keyword_but_no_models_rejects(models: ResolvedModels) -> None:
+    verdict = accepts(models, uml("alpha x"), start_map={"uml": ["ghost"]})
     assert (verdict["accepted"], verdict["status"]) == (False, "reject")
     assert failure_of(verdict) == (1, "@startuml")
 
@@ -47,7 +60,7 @@ def test_start_map_without_keyword_has_no_candidates(models: ResolvedModels) -> 
 def test_multiline_consumed_until_end_then_next_line_dispatched(models: ResolvedModels) -> None:
     text = uml("note", "anything goes", "alpha ignored by class", "end note", "beta z")
     verdict = accepts(models, text)
-    assert (verdict["accepted"], verdict["diagram"]) == (True, "classtoy")
+    assert (verdict["accepted"], verdict["model"]) == (True, "classtoy")
 
 
 def test_line_after_multiline_end_is_dispatched_normally_and_can_fail(
@@ -61,7 +74,7 @@ def test_line_after_multiline_end_is_dispatched_normally_and_can_fail(
 def test_unterminated_multiline_is_dropped_and_next_command_tried(models: ResolvedModels) -> None:
     verdict = accepts(models, uml("note", "beta x"))
     # CommandNoteMulti never closes -> skipped; CommandNoteSingle takes "note".
-    assert (verdict["accepted"], verdict["diagram"]) == (True, "classtoy")
+    assert (verdict["accepted"], verdict["model"]) == (True, "classtoy")
 
 
 def test_embedded_diagram_end_does_not_close_outer_multiline(models: ResolvedModels) -> None:
@@ -80,6 +93,7 @@ def test_no_matching_command_reports_one_based_line_and_text(models: ResolvedMod
         "accepted": False,
         "diagram": None,
         "first_failure": {"line": 4, "text": "  bogus line  "},
+        "model": None,
         "status": "reject",
     }
 
@@ -127,7 +141,7 @@ def test_bracket_command_negative_depth_is_dropped(models: ResolvedModels) -> No
 def test_opaque_swallows_rest_of_block_up_to_end(models: ResolvedModels) -> None:
     text = "@startdot\ndigraph g {\n a -> b ; ((( not parsed\n}\n@enddot"
     verdict = accepts(models, text)
-    assert (verdict["accepted"], verdict["diagram"]) == (True, "dottoy")
+    assert (verdict["accepted"], verdict["model"]) == (True, "dottoy")
     assert failure_of(accepts(models, "@startdot\nnot digraph\n@enddot")) == (2, "not digraph")
 
 
@@ -156,14 +170,14 @@ def test_empty_body_is_rejected_at_the_start_line(models: ResolvedModels) -> Non
 
 
 def test_bare_body_without_start_line_tries_every_diagram(models: ResolvedModels) -> None:
-    assert accepts(models, "beta x")["diagram"] == "classtoy"
+    assert accepts(models, "beta x")["model"] == "classtoy"
     assert failure_of(accepts(models, "alpha x\nzzz")) == (2, "zzz")
 
 
-def test_unknown_start_keyword_is_rejected_at_start_line(models: ResolvedModels) -> None:
+def test_unknown_start_keyword_is_unsupported_and_accepted(models: ResolvedModels) -> None:
+    # PSystemErrorUtils.checkBasicError returns PSystemUnsupported (:58-59), not an error.
     verdict = accepts(models, "@startnope\nalpha x\n@endnope")
-    assert (verdict["accepted"], verdict["status"]) == (False, "reject")
-    assert failure_of(verdict) == (1, "@startnope")
+    assert (verdict["accepted"], verdict["status"], verdict["diagram"]) == (True, "ok", None)
 
 
 def test_reported_failure_is_the_one_that_got_furthest(models: ResolvedModels) -> None:
@@ -188,6 +202,7 @@ def test_pathological_regex_times_out_promptly() -> None:
         "accepted": False,
         "diagram": None,
         "first_failure": None,
+        "model": None,
         "status": "timeout",
     }
 
@@ -216,10 +231,10 @@ def test_unresolved_ref_and_missing_context_give_error_status() -> None:
 
 
 def test_interpreter_cache_follows_models_identity(models: ResolvedModels) -> None:
-    assert accepts(models, uml("alpha x"))["diagram"] == "seqtoy"
+    assert accepts(models, uml("alpha x"))["model"] == "seqtoy"
     other = _single_rule_models({"regex": "x"})
-    assert accepts(other, uml("x"))["diagram"] == "only"
-    assert accepts(models, uml("alpha x"))["diagram"] == "seqtoy"
+    assert accepts(other, uml("x"))["model"] == "only"
+    assert accepts(models, uml("alpha x"))["model"] == "seqtoy"
 
 
 def _single_rule_models(parts: dict[str, str], push: str | None = None) -> ResolvedModels:

@@ -26,11 +26,14 @@ class FirstFailure(TypedDict):
 
 
 class Verdict(TypedDict):
-    """Contract I3."""
+    """Contract I3. ``diagram`` is the upstream ``DiagramType`` name of the accepting
+    model (compare with the oracle's ``diagram_type``); ``model`` (additive) is its id.
+    Both are ``None`` unless a model accepted the block."""
 
     accepted: bool
     diagram: str | None
     first_failure: FirstFailure | None
+    model: str | None
     status: Status
 
 

@@ -29,6 +29,26 @@ Upstream semantics mirrored (all at 97a5992):
 * ``kind: opaque``: after its ``parts`` match the line, the rest of the block (up to
   ``@end``) is swallowed as an unparsed body and accepted.
 
+* Dispatch: ``tools.interp.dispatch`` (document-layer ``start_map``, top model per
+  factory). A keyword no factory serves is ``PSystemUnsupported``
+  (``PSystemErrorUtils.java:58-59``, ``PSystemBuilder.java:283-284``), which is not a
+  ``PSystemError`` and so is accepted (``diagram``/``model`` ``None``), as the oracle
+  reports it.
+* Empty bodies: ``PSystemCommandFactory`` rejects them at the start line; non-command
+  factories differ (``PSystemWelcomeFactory`` accepts *only* an empty ``@startuml``,
+  ``JsonDiagramFactory`` accepts one). A model opts out of the rejection by declaring an
+  ``empty`` context: the body lines followed by the ``@end`` line are run through it.
+* Raw mode (``raw=True``, the L1 hook): input is a raw block, not preprocessed text. If a
+  ``layer: preproc`` model exists, every body line (after comment removal) is first
+  offered to it, with its own context stack starting at ``main``; kinds, ``multiline``,
+  ``join``, ``push``, ``pop`` and ``set`` behave exactly as for diagram rules. Lines a
+  preproc rule matches are consumed; the rest go to the diagram. Upstream preprocesses
+  the whole block before any factory runs (``BlockUmlBuilder.java:95``), so this runs as
+  a filter once per block: every factory attempt sees the same lines, which is the same
+  as resetting the preproc stack per attempt. A block whose non-blank lines are all
+  consumed is an empty body. With ``raw=False`` (L2 input, already preprocessed) the
+  preproc model is ignored.
+
 Known semantic gaps (upstream behavior the model cannot represent, so the interpreter
 may accept what the jar rejects): ``executeArg``/``execute`` results (e.g. unknown
 colors, duplicate entities, ``CommandExecutionResult.error``), ``finalVerification``,
@@ -49,25 +69,38 @@ import regex
 
 from tools.interp import STATUS_ERROR, STATUS_OK, STATUS_REJECT, STATUS_TIMEOUT, Verdict
 from tools.interp.compile import PartError
-from tools.interp.dispatch import candidates
+from tools.interp.dispatch import Dispatcher
 from tools.interp.rules import ACTION_POP, ACTION_PUSH, ACTION_SET, Rule, RuleBook
 from tools.interp.scan import BlockTimeout, Deadline
 from tools.interp.source import Block, Line, split_block
 from tools.model import ResolvedModel, ResolvedModels
 
 MAIN_CONTEXT = "main"
+EMPTY_CONTEXT = "empty"
+PREPROC_LAYER = "preproc"
 DEFAULT_TIMEOUT_S = 10.0
 MODEL_ERRORS = (regex.error, KeyError, PartError)
 
 
-def _verdict(status: str, diagram: str | None = None, failed: Line | None = None) -> Verdict:
+def _verdict(
+    status: str, model: ResolvedModel | None = None, failed: Line | None = None
+) -> Verdict:
     failure = {"line": failed.number, "text": failed.text} if failed else None
     return {
         "accepted": status == STATUS_OK,
-        "diagram": diagram,
+        "diagram": model.diagram if model else None,
         "first_failure": failure,  # type: ignore[typeddict-item]
+        "model": model.id if model else None,
         "status": status,  # type: ignore[typeddict-item]
     }
+
+
+def _is_empty(body: list[Line]) -> bool:
+    return not any(line.trimmed for line in body)
+
+
+def _preproc_model(models: ResolvedModels) -> ResolvedModel | None:
+    return next((m for m in models.values() if m.layer == PREPROC_LAYER), None)
 
 
 def _apply(stack: list[str], rule: Rule) -> None:
@@ -88,16 +121,21 @@ class Interpreter:
         start_map: Mapping[str, Sequence[str]] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        self._models = models
-        self._start_map = start_map
+        self._dispatch = Dispatcher(models, start_map)
+        self._preproc = _preproc_model(models)
         self._clock = clock
         self._book = RuleBook()
 
-    def accepts(self, block_text: str, timeout_s: float = DEFAULT_TIMEOUT_S) -> Verdict:
+    def accepts(
+        self, block_text: str, timeout_s: float = DEFAULT_TIMEOUT_S, raw: bool = False
+    ) -> Verdict:
         """Contract I3. Line numbers are 1-based within ``block_text``."""
         block = split_block(block_text)
         deadline = Deadline(timeout_s, self._clock)
         try:
+            if raw and self._preproc is not None:
+                body = self._preprocess(self._preproc, block.body, deadline)
+                block = Block(block.start, block.keyword, body, block.end)
             return self._decide(block, deadline)
         except BlockTimeout:
             return _verdict(STATUS_TIMEOUT)
@@ -106,21 +144,36 @@ class Interpreter:
 
     def _decide(self, block: Block, deadline: Deadline) -> Verdict:
         anchor = block.start or Line(1, "", "")
-        if not any(line.trimmed for line in block.body):
-            return _verdict(STATUS_REJECT, failed=anchor)
-        cands = candidates(self._models, block.keyword, self._start_map)
-        best: tuple[int, Line] | None = None
+        cands = self._dispatch.plan(block.keyword)
+        if cands is None:
+            return _verdict(STATUS_OK)
+        best: tuple[int, Line] = (-1, anchor)
         for model in cands:
-            failed = self._run(model, block.body, deadline)
+            failed = self._attempt(model, block, deadline)
             if failed is None:
-                return _verdict(STATUS_OK, model.id)
-            if best is None or failed > best[0]:
-                best = (failed, block.body[failed])
-        return _verdict(STATUS_REJECT, failed=best[1] if best else anchor)
+                return _verdict(STATUS_OK, model)
+            if failed[0] > best[0]:
+                best = failed
+        return _verdict(STATUS_REJECT, failed=best[1])
 
-    def _run(self, model: ResolvedModel, body: list[Line], deadline: Deadline) -> int | None:
+    def _attempt(
+        self, model: ResolvedModel, block: Block, deadline: Deadline
+    ) -> tuple[int, Line] | None:
+        """``(progress, line)`` of the first rejected line, or ``None`` if accepted."""
+        lines, context = block.body, MAIN_CONTEXT
+        if _is_empty(block.body):
+            if EMPTY_CONTEXT not in model.contexts:
+                return -1, block.start or Line(1, "", "")
+            lines = block.body + ([block.end] if block.end else [])
+            context = EMPTY_CONTEXT
+        failed = self._run(model, lines, context, deadline)
+        return None if failed is None else (failed, lines[failed])
+
+    def _run(
+        self, model: ResolvedModel, body: list[Line], context: str, deadline: Deadline
+    ) -> int | None:
         """Body index of the first line no command accepts, or ``None`` if all pass."""
-        stack = [MAIN_CONTEXT]
+        stack = [context]
         i = 0
         while i < len(body):
             step = self._candidate(model, stack[-1], body, i, deadline)
@@ -132,6 +185,21 @@ class Interpreter:
             else:
                 i += 1
         return None
+
+    def _preprocess(self, model: ResolvedModel, body: list[Line], deadline: Deadline) -> list[Line]:
+        """Lines the preproc model does not consume, in order (raw mode)."""
+        stack = [MAIN_CONTEXT]
+        kept: list[Line] = []
+        i = 0
+        while i < len(body):
+            step = self._candidate(model, stack[-1], body, i, deadline)
+            if step is None:
+                kept.append(body[i])
+                i += 1
+            else:
+                _apply(stack, step[0])
+                i = step[1]
+        return kept
 
     def _candidate(
         self, model: ResolvedModel, context: str, body: list[Line], i: int, deadline: Deadline
@@ -165,14 +233,17 @@ def accepts(
     models: ResolvedModels,
     block_text: str,
     *,
+    raw: bool = False,
     start_map: Mapping[str, Sequence[str]] | None = None,
     timeout_s: float = DEFAULT_TIMEOUT_S,
 ) -> Verdict:
     """Would upstream accept ``block_text`` (``@startX`` ... ``@endX`` included)?
 
-    ``start_map`` maps a start keyword (``"uml"`` or ``"@startuml"``) to the ordered ids
-    of the diagram models to try; without it the keyword is resolved like
-    ``DiagramType.findStartTypes`` (see ``tools.interp.dispatch``). A block with no
-    ``@start`` line is treated as a bare body tried against every diagram model.
+    ``start_map`` maps a start keyword (``"uml"`` or ``"@startuml"``) to the ordered
+    factories or model ids to try; without it the document-layer model's ``start_map``
+    is used, else the keyword is resolved like ``DiagramType.findStartTypes`` (see
+    ``tools.interp.dispatch``). A block with no ``@start`` line is treated as a bare
+    body tried against every diagram model. ``raw=True`` runs the preproc-layer model
+    first (see the module docstring).
     """
-    return _interpreter_for(models, start_map).accepts(block_text, timeout_s)
+    return _interpreter_for(models, start_map).accepts(block_text, timeout_s, raw)
