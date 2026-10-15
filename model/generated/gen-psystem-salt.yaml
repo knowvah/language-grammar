@@ -425,3 +425,4 @@ contexts:
     provenance: {class: net.sourceforge.plantuml.salt.CommandAnything, file: src/main/java/net/sourceforge/plantuml/salt/CommandAnything.java, line: 54, engine: IRegex}
     kind: single
     parts: {regex: (.*), ci: true, name: ALL}
+    trim: false

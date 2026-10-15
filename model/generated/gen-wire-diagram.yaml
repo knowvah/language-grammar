@@ -476,6 +476,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - {regex: '(#\w+)?', ci: true, name: COLOR}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandSpot
     provenance: {class: net.sourceforge.plantuml.wire.CommandSpot, file: src/main/java/net/sourceforge/plantuml/wire/CommandSpot.java, line: 58, engine: IRegex}
     kind: single
@@ -500,6 +501,7 @@ contexts:
           - {regex: "[\\s\_]*", ci: true}
           - {regex: '(#\w+)?', ci: true, name: COLOR}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandGoto
     provenance: {class: net.sourceforge.plantuml.wire.CommandGoto, file: src/main/java/net/sourceforge/plantuml/wire/CommandGoto.java, line: 54, engine: IRegex}
     kind: single
@@ -518,6 +520,7 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - {literal: ), ci: true}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandMove
     provenance: {class: net.sourceforge.plantuml.wire.CommandMove, file: src/main/java/net/sourceforge/plantuml/wire/CommandMove.java, line: 54, engine: IRegex}
     kind: single
@@ -536,6 +539,7 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - {literal: ), ci: true}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandWLink
     provenance: {class: net.sourceforge.plantuml.wire.CommandWLink, file: src/main/java/net/sourceforge/plantuml/wire/CommandWLink.java, line: 59, engine: IRegex}
     kind: single
@@ -564,6 +568,7 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - {regex: "(?::[\\s\_]*(.*))?", ci: true, name: MESSAGE}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandNewColumn
     provenance: {class: net.sourceforge.plantuml.wire.CommandNewColumn, file: src/main/java/net/sourceforge/plantuml/wire/CommandNewColumn.java, line: 54, engine: IRegex}
     kind: single
@@ -572,6 +577,7 @@ contexts:
       - {regex: '([\s\t]*)', ci: true, name: INDENT}
       - {regex: -+, ci: true}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandPrint
     provenance: {class: net.sourceforge.plantuml.wire.CommandPrint, file: src/main/java/net/sourceforge/plantuml/wire/CommandPrint.java, line: 54, engine: IRegex}
     kind: single
@@ -590,3 +596,4 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - {literal: ), ci: true}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false

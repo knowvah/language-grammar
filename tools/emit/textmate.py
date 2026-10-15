@@ -38,6 +38,10 @@ Context transitions are only approximated (TextMate has no frame replacement):
 
 Approximation: TextMate is line based and picks the leftmost-first rule of the active
 list, so upstream's ordered, stateful command matching is only approximated.
+
+Contract keys ignored by this emitter: ``gives``/``needs`` (diagram flags, final-state
+checks) are ignored; ``trim: false`` is ignored (the emitted pattern is matched against
+the trimmed line); ``emit: false`` entries are dropped like ``reject`` (see ``skip.py``).
 """
 
 from __future__ import annotations

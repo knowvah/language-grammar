@@ -74,6 +74,10 @@ first-match and stateful), so interpreter/Lark disagreements are expected:
   nullable regex is emitted as ``(/(?V0)(?=[\\s\\S])(?:PATTERN)/)?``: ``(?V0)`` makes
   Lark fall back to ``regex.match('')`` for the width check, the lookahead makes that
   check report non-empty, and the rule-level ``?`` restores nullability.
+
+Contract keys ignored by this emitter: ``gives``/``needs`` (diagram flags, final-state
+checks) are ignored; ``trim: false`` is ignored (the emitted pattern is matched against
+the trimmed line); ``emit: false`` entries are dropped like ``reject`` (see ``skip.py``).
 """
 
 from __future__ import annotations

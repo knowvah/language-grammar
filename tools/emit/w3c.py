@@ -34,6 +34,10 @@ Conventions (repeated in the generated header):
 
 ``emit_w3c`` returns the text (the ``tools.emit.build`` contract); ``emit_w3c_with_lossiness``
 also returns the lossiness entries. The header states the total and a per-construct tally.
+
+Contract keys ignored by this emitter: ``gives``/``needs`` (diagram flags, final-state
+checks) are ignored; ``trim: false`` is ignored (the emitted pattern is matched against
+the trimmed line); ``emit: false`` entries are dropped like ``reject`` (see ``skip.py``).
 """
 
 from __future__ import annotations

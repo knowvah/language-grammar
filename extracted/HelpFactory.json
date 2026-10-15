@@ -22,7 +22,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 1,
@@ -42,7 +43,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 2,
@@ -62,7 +64,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 3,
@@ -82,7 +85,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 4,
@@ -102,7 +106,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     }
   ],
   "unreachable": []

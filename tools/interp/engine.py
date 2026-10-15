@@ -41,6 +41,16 @@ Upstream semantics mirrored (all at 97a5992):
   before the push, and resumes at the *pushing line* with the rules after the pushing
   rule. When none matches the attempt fails at the pushing line. Frames closed by
   ``pop`` before the block ends are final, as are failures on lines inside a body.
+* ``gives: <flag>`` / ``needs: <flag>``: order-free diagram flags over the entries that
+  matched in the diagram's own command loop (never the raw-mode preproc filter). When the
+  body ends and no ``require_pop`` frame is pending, an attempt where a matched entry
+  ``needs`` a flag no matched entry ``gives`` fails at the block's ``@end`` line. Mirrors
+  an exception thrown by ``checkFinalError`` / ``makeDiagramReady``-time code that
+  ``PSystemBuilder`` catches as ``Throwable`` and reports as an execution error
+  (``PSystemBuilder.java:275-280``). A backtrack to a ``require_pop`` push discards the
+  entries matched after that push, flags included.
+* ``trim: false`` (``single`` only): the entry matches ``Line.text`` (see
+  ``tools.interp.rules``).
 * ``kind: opaque``: after its ``parts`` match the line, the rest of the block (up to
   ``@end``) is swallowed as an unparsed body and accepted.
 
@@ -136,15 +146,30 @@ class _Resume:
     index: int
     stack: tuple[str, ...]
     next_rule: int
+    flagged: int  # flag-carrying rules matched before the push; later ones are discarded
 
 
-def _track(frames: list[_Resume | None], stack: list[str], step: _Step, i: int) -> None:
+def _track(
+    frames: list[_Resume | None], stack: list[str], step: _Step, i: int, flagged: int
+) -> None:
     """Mirror push/pop in ``frames`` (one slot per stack frame) before ``_apply``."""
     rule = step[0]
     if rule.action == ACTION_PUSH:
-        frames.append(_Resume(i, tuple(stack), step[2] + 1) if rule.require_pop else None)
+        resume = _Resume(i, tuple(stack), step[2] + 1, flagged)
+        frames.append(resume if rule.require_pop else None)
     elif rule.action == ACTION_POP and len(frames) > 1:
         frames.pop()
+
+
+def _closing_line(block: Block, lines: list[Line]) -> Line:
+    """The block's ``@end`` line, else its last line (final-state failures)."""
+    return block.end or (lines[-1] if lines else block.start or Line(1, "", ""))
+
+
+def _unmet_need(flagged: list[Rule]) -> bool:
+    """True when a matched entry ``needs`` a flag that no matched entry ``gives``."""
+    given = {rule.gives for rule in flagged}
+    return any(rule.needs and rule.needs not in given for rule in flagged)
 
 
 class Interpreter:
@@ -202,22 +227,29 @@ class Interpreter:
             lines = block.body + ([block.end] if block.end else [])
             context = EMPTY_CONTEXT
         failed = self._run(model, lines, context, deadline)
-        return None if failed is None else (failed, lines[failed])
+        if failed is None:
+            return None
+        return failed, lines[failed] if failed < len(lines) else _closing_line(block, lines)
 
     def _run(
         self, model: ResolvedModel, body: list[Line], context: str, deadline: Deadline
     ) -> int | None:
-        """Body index of the first line no command accepts, or ``None`` if all pass."""
+        """Body index of the first line no command accepts, or ``None`` if all pass.
+
+        ``len(body)`` means the final-state check failed (an unmet ``needs`` flag).
+        """
         stack = [context]
         frames: list[_Resume | None] = [None]
+        flagged: list[Rule] = []
         i, first = 0, 0
         while True:
             if i >= len(body):
                 pending = next((f for f in frames if f is not None), None)
                 if pending is None:
-                    return None
+                    return len(body) if _unmet_need(flagged) else None
                 stack, frames = list(pending.stack), [None]
                 i, first = pending.index, pending.next_rule
+                del flagged[pending.flagged :]
             step = self._candidate(model, stack[-1], body, i, deadline, first)
             first = 0
             if step is None:
@@ -227,7 +259,8 @@ class Interpreter:
             elif step[0].reject:
                 return i
             else:
-                _track(frames, stack, step, i)
+                _track(frames, stack, step, i, len(flagged))
+                flagged.extend([step[0]] if step[0].gives or step[0].needs else [])
                 _apply(stack, step[0])
                 i = step[1]
 

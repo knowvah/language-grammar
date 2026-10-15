@@ -61,6 +61,9 @@ contexts:
 | `provenance.also: [str]` | entry | Optional extra `path:line` (or `path:first-last`) citations at the pin, each matching `^src/main/java/.+\.java:\d+(-\d+)?$`. The loader checks the pattern only; a corpus test checks that every citation in `model/` resolves at 97a5992. | none (added) |
 | `require_pop: true` | entry | Only with `push` (also allowed in `overrides`): ending the block while the pushed frame is still open skips the command, so the interpreter backtracks to the pushing line (see "Unterminated bodies and rejected lines"). | none (added) |
 | `reject: true` | entry | `single` only, no `push`/`pop`/`set` (also allowed in `insert_before`/`insert_after` entries and `overrides`): when the entry is selected the attempt fails at that line (mirrors `CommandExecutionResult.error`). Emitters drop the entry. | none (added) |
+| `emit: false` | entry | Interpreter-only entry (also allowed in `overrides` and inserts): Lark, W3C and TextMate drop it exactly like a `reject` entry (`tools/emit/skip.py`); the interpreter uses it normally. For state heads whose generated twin already accepts the same lines. | none (added) |
+| `gives: FLAG` / `needs: FLAG` | entry | Snake_case diagram flag (also allowed in `overrides`, `insert_before`/`insert_after` entries): the entry sets / requires the flag, checked once at the end of the body (see "Diagram flags and untrimmed matching"). Emitters ignore both. | none (added) |
+| `trim: false` | entry | `single` only (also allowed in `overrides` and inserts): the entry matches the line as the command loop receives it, with leading and trailing blanks. Emitters ignore it. | none (added) |
 | `refined_by` | entry | Id of the model whose `overrides` changed this entry; set by the resolver, never hand-written. | none (added) |
 
 ### Multiline kinds
@@ -70,7 +73,7 @@ Every consumer (interpreter, emitters) must implement these exactly as written h
 
 | Kind | First line | Completion |
 |---|---|---|
-| `single` | `parts` matches the whole trimmed line. | That line. |
+| `single` | `parts` matches the whole trimmed line (the untrimmed line with `trim: false`). | That line. |
 | `multiline` + `end` | `parts` matches. | First later line whose trimmed text fully matches `end` (`CommandMultilines2.java:79-110`). |
 | `multiline` + `join` | (lines joined) | Lines `1..k` (k ≤ `max_lines`+1) joined with U+E100 (`utils/BlocLines.java:296`, `jaws/Jaws.java:47`) fully match `parts`; the smallest such k wins (`CommandDecoratorMultine.java:77-93`, cap at `PSystemCommandFactory.java:281`). k = 1 is the single-line case. |
 | `multiline-bracket` | `parts` matches (it ends in `{`). | Bracket depth returns to 0: depth starts at 1, a trimmed line ending in `{` adds one, ending in `}` removes one (`CommandMultilinesBracket.java:64-96`). |
@@ -107,6 +110,49 @@ when it is the first match in context order, so it must precede the entries it s
 (typically via `insert_before` the unnarrowed generated rule). Lark, W3C and TextMate drop
 `reject` entries and also skip `join` entries whose `parts` need U+E100 on every path
 (they can never match one line, see each emitter's docstring).
+
+### Diagram flags and untrimmed matching (`gives`, `needs`, `trim: false`)
+
+**Flags.** Some upstream errors are final-state failures that no context stack can express,
+because they depend on the whole body regardless of order: a gantt with separators or
+groups but no real task throws a `NullPointerException` in `TimeBoundsData.durationInDays`,
+which `PSystemBuilder` catches as `Throwable` and reports as an execution error
+(`PSystemBuilder.java:275-280`). `gives: <flag>` and `needs: <flag>` model it. Flags are
+monotone and order-free:
+
+* The interpreter collects the entries it selects in the diagram's own command loop.
+  When the body ends (and no `require_pop` frame is pending), the attempt fails **at the
+  block's `@end` line** (its last line when there is none) if a selected entry `needs` a
+  flag that no selected entry `gives`. A line no command accepts still fails at that
+  line first.
+* Where the give happens does not matter: before or after the need, in a pushed
+  context, after the pop. Pushing a context does not hide or restore flags.
+* Backtracking (`require_pop`) discards the entries selected after the abandoned push,
+  flags included; the entry that is re-matched at the pushing line counts afresh.
+* In raw mode the preproc model's entries never contribute: it runs as a separate filter.
+* `reject` entries fail the attempt at their line before any final-state check.
+* Emitters (Lark, W3C, TextMate) accept regular syntax only and ignore both keys, so
+  they are wider than the interpreter for such bodies. Each emitter docstring should say:
+  "`gives`/`needs` (diagram flags, final-state checks) are ignored."
+
+```yaml
+- {command: Separator, ..., needs: real_task}   # `-- x --`
+- {command: Task, ..., gives: real_task}        # any real task
+```
+
+**Untrimmed matching.** `SingleLineCommand2(doTrim=false, ...)` matches the first line
+as is (`command/SingleLineCommand2.java:76-81` `myTrim2`, called at `:93`, matched at
+`:102`); the default trims with `StringUtils.trin` (`StringLocated.getTrimmed`).
+`trim: false` selects the first behaviour (`single` only). The text is `Line.text`, the line
+as `preproc/ReadLineReader.java:89-102` returns it: `readLine` ends a line at `\n`, `\r` or
+`\r\n`, a leading U+FEFF is dropped, and U+2013 becomes `-`; tabs and trailing blanks are
+kept (nothing else rewrites the text before the command loop; inner `/' ... '/` comment
+removal, `StringLocated.removeInnerComment`, is not reproduced). The translator emits
+`trim: false` for every extracted command whose `doTrim` field is false (`SingleLineCommand2`
+and `UBrexSingleLineCommand2` both carry the field; at 97a5992 only IRegex commands use
+`false`: 23 classes, 25 command instances). A regex that never expected leading blanks now
+fails on an indented line, exactly like upstream, so hand-written overrides of those entries
+that rely on trimming must allow `\s*` explicitly.
 
 ### Case sensitivity
 

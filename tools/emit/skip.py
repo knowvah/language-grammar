@@ -1,5 +1,8 @@
 """Entries no emitter can express: ``reject`` entries and ``join`` entries that need a joiner.
 
+* ``emit: false`` entries are interpreter-only (state heads that would only double the
+  derivations of a grammar that keeps the generated rules accepting the same lines); dropped.
+
 * ``reject: true`` entries only make the interpreter fail an attempt (they mirror
   ``CommandExecutionResult.error``); a grammar describes accepted text, so they are dropped.
 * A ``multiline`` entry with ``join`` matches several lines joined with U+E100
@@ -21,13 +24,14 @@ from tools.model import Entry, Part
 JOINER = ""
 JOIN_KEY = "join"
 REJECT_KEY = "reject"
+EMIT_KEY = "emit"
 OPTIONAL_QUANTIFIERS = "?*"
 ZERO_BRACE = "{0"
 
 
 def skipped(entry: Entry) -> bool:
     """True when emitters must drop the command ``entry``."""
-    if entry.get(REJECT_KEY):
+    if entry.get(REJECT_KEY) or entry.get(EMIT_KEY) is False:
         return True
     return JOIN_KEY in entry and needs_joiner(entry["parts"])
 

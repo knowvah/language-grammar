@@ -31,6 +31,7 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - opt: {regex: (grid), ci: true, name: GRID}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartVAxis
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartVAxis, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartVAxis.java, line: 61, engine: IRegex}
     kind: single
@@ -61,6 +62,7 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - opt: {regex: (grid), ci: true, name: GRID}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartBar
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartBar, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartBar.java, line: 62, engine: IRegex}
     kind: single
@@ -81,6 +83,7 @@ contexts:
           - {regex: "[\\s\_]+", ci: true}
           - {regex: (labels), ci: true, name: LABELS}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartLine
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartLine, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartLine.java, line: 62, engine: IRegex}
     kind: single
@@ -105,6 +108,7 @@ contexts:
           - {regex: "[\\s\_]+", ci: true}
           - {regex: (labels), ci: true, name: LABELS}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartArea
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartArea, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartArea.java, line: 62, engine: IRegex}
     kind: single
@@ -129,6 +133,7 @@ contexts:
           - {regex: "[\\s\_]+", ci: true}
           - {regex: (labels), ci: true, name: LABELS}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartScatter
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartScatter, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartScatter.java, line: 62, engine: IRegex}
     kind: single
@@ -157,6 +162,7 @@ contexts:
           - {regex: "[\\s\_]+", ci: true}
           - {regex: <<(circle|square|triangle)>>, ci: true, name: MARKER}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartLegend
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartLegend, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartLegend.java, line: 54, engine: IRegex}
     kind: single
@@ -167,6 +173,7 @@ contexts:
       - {regex: "[\\s\_]+", ci: true}
       - {regex: (left|right|top|bottom), ci: true, name: POSITION}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartStackMode
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartStackMode, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartStackMode.java, line: 54, engine: IRegex}
     kind: single
@@ -177,6 +184,7 @@ contexts:
       - {regex: "[\\s\_]+", ci: true}
       - {regex: (grouped|stacked), ci: true, name: MODE}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartOrientation
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartOrientation, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartOrientation.java, line: 54, engine: IRegex}
     kind: single
@@ -187,6 +195,7 @@ contexts:
       - {regex: "[\\s\_]+", ci: true}
       - {regex: (vertical|horizontal), ci: true, name: ORIENTATION}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandChartAnnotation
     provenance: {class: net.sourceforge.plantuml.chart.command.CommandChartAnnotation, file: src/main/java/net/sourceforge/plantuml/chart/command/CommandChartAnnotation.java, line: 61, engine: IRegex}
     kind: single
@@ -211,6 +220,7 @@ contexts:
       - {regex: "[\\s\_]*", ci: true}
       - opt: {regex: <<(arrow)>>, ci: true, name: ARROW}
       - {regex: "[\\s\_]*", ci: true}
+    trim: false
   - command: CommandTitle
     provenance: {class: net.sourceforge.plantuml.command.CommandTitle, file: src/main/java/net/sourceforge/plantuml/command/CommandTitle.java, line: 59, engine: IRegex}
     kind: single

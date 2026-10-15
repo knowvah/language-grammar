@@ -20,7 +20,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 1,
@@ -56,7 +57,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 2,
@@ -78,7 +80,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 3,
@@ -105,7 +108,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 4,
@@ -144,7 +148,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 5,
@@ -178,7 +183,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 7,
@@ -198,7 +204,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 8,
@@ -222,7 +229,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 9,
@@ -240,7 +248,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 10,
@@ -314,7 +323,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 12,
@@ -338,7 +348,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 13,
@@ -362,7 +373,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 14,
@@ -385,7 +397,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 15,
@@ -408,7 +421,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 16,
@@ -431,7 +445,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 17,
@@ -477,7 +492,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 19,
@@ -497,7 +513,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 20,
@@ -542,7 +559,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 22,
@@ -580,7 +598,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 23,
@@ -604,7 +623,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 24,
@@ -626,7 +646,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 25,
@@ -650,7 +671,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 26,
@@ -674,7 +696,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 27,
@@ -700,7 +723,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 28,
@@ -728,7 +752,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 29,
@@ -765,7 +790,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 30,
@@ -793,7 +819,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 31,
@@ -889,7 +916,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 35,
@@ -941,7 +969,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 36,
@@ -1007,7 +1036,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 38,
@@ -1056,7 +1086,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 40,
@@ -1074,7 +1105,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": false
     }
   ],
   "unreachable": []

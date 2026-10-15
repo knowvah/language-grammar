@@ -690,3 +690,80 @@ Schema: `"trim": {"const": false}` on entries and override patches, valid only w
 class, see .agent-notes/T02.md). Until it lands, mindmap-wbs keeps these as gaps.
 - gantt / JAVA_INT_RANGE longest-first → applied by the orchestrator (T24 commit).
 - gantt / gives-needs final-state flags → adopted as a contract change (delegated).
+
+## activity3: interpreter-only state heads double Lark derivations (non-blocking, contract)
+T21b models the swimlane strategy (ActivityDiagram3.java:80-95, a diagram-wide flag) with
+head copies of the deciding commands that `set` the top level from undecided (`a3_main`)
+to `a3_nolanes_main` (model/diagrams/activity3-structure-lanes.yaml). The interpreter takes
+the copy first; Lark (unordered) keeps both the generated rule (stay) and the copy (exit
+into another root form) at every deciding line, so one root form per deciding line stays
+alive to the end of the block. Measured on plantuml-ts blocks (oracle-preprocessed text,
+same tools/ state, grammar from model/ with vs without the lanes heads): cakeca-72-kara622
+1.5 s -> 3.2 s, judatu-15-xize591 16.4 s -> 19.5 s, lidumi-54-moza355 7.3 s -> 8.0 s.
+Emitters cannot express the strategy anyway (rejects are dropped), so the heads only cost.
+Proposal: optional entry key `emit: false` (also in `insert_*` entries and `overrides`):
+emitters drop the entry like a `reject` (they keep the generated rules, which accept the
+same lines). activity3-structure-lanes would set it on its 11 `a3_lanes_decide` heads and
+`Activity3SplitEndTop`.
+```diff
+--- a/tools/emit/skip.py
++++ b/tools/emit/skip.py
+@@
+ JOIN_KEY = "join"
+ REJECT_KEY = "reject"
++EMIT_KEY = "emit"
+@@ def skipped(entry: Entry) -> bool:
+     """True when emitters must drop the command ``entry``."""
+-    if entry.get(REJECT_KEY):
++    if entry.get(REJECT_KEY) or entry.get(EMIT_KEY) is False:
+         return True
+```
+Schema (model/schema.json): `"emit": {"const": false}` beside `reject` on entries, and
+`"emit": {"oneOf": [{"type": "null"}, {"const": false}]}` in override patches; guide:
+one row in the Keys table ("interpreter-only entry; emitters drop it").
+
+## contract: resolution of gantt final-state flags and mindmap-wbs untrimmed matching (2026-10-15)
+
+* gantt / final-state check "a separator or group needs a real task": implemented as `gives: <flag>` / `needs: <flag>` (schema, guide section "Diagram flags and untrimmed matching", `tools/interp/{rules,engine}.py`). The failure is reported at the block's `@end` line. Family models may now use the keys; the strict-xfail fixtures `tests/fixtures/gantt/gap/{separator-only,separator-bare-only,group-only}.puml` become fixable. Emitters ignore both keys (docstring sentence queued for `fix-emit-queue`: "`gives`/`needs` (diagram flags, final-state checks) are ignored.").
+* mindmap-wbs / `SingleLineCommand2(doTrim=false)`: implemented as `trim: false` (schema, interpreter matches `Line.text`, extractor records `doTrim`, translator emits `trim: false`, `extracted/` and `model/generated/` regenerated). 23 classes / 25 entries carry it. The gap fixtures `mindmap-indented-plus` and `wbs-pseudo-trailing-blank` are now rejected by the interpreter, as by the jar. Emitters ignore the key (docstring sentence queued: "`trim: false` is ignored; the emitted pattern is matched against the trimmed line.").
+* activity3 / interpreter-only state heads: implemented as entry key `emit: false` (schema entries, patches and inserts; guide Keys row; `tools/emit/skip.py` `skipped()`), dropped by all emitters like `reject`. No family model uses it yet; T21b adopts it.
+
+## gantt: second use for the gives/needs flags (addendum to the final-state entry above)
+
+Non-blocking; no change beyond that entry. "No starting date for the project": an absolute
+`starts`/`ends` task phrase fails unless a `project starts` came first
+(gantt/lang/SubjectTask.java:105-107, :172-173, :262-263, :305-306). `project starts` is only
+legal before any task-like entry (GanttDiagram.java:340-346, modeled as a reject in
+gantt-sentences), so an order-free flag is exact: `gives: project_start` on
+NaturalGanttGantt, `needs: project_start` on a task sentence entry whose committed phrase is
+an absolute `starts`/`ends` (split from NaturalGanttTask). Failing cases: pdiff
+dbhum/f_ob/fobeda-14-tori503.puml#0, dbhum/f_ur/furubu-23-mecu777.puml#0 (classified `bug`
+in reports/classify/gantt.yaml) and tests/fixtures/gantt/sentences/gap/no-start-date.puml.
+
+## salt: translate Java `.` as `[^\n\r\x85  ]` (non-blocking, translator)
+
+Java compiles every IRegex pattern without DOTALL/UNIX_LINES (regex/Pattern2.java:114), so
+`.` refuses U+0085, U+2028 and U+2029, and `$` also matches before a final one; commands
+are matched with find() (regex/RegexComposed.java:112-118). The translator copies `.`
+verbatim, and Python's `.` matches those three characters, so every generated `.` slot
+accepts lines the jar rejects. Oracle-verified on salt: `title a<U+2028>b` is rejected by the
+jar (CommandTitle and CommandAnything both fail) and accepted by the interpreter
+(tests/fixtures/salt/gap/title-line-separator.puml, strict xfail). salt.yaml already guards
+its own CommandAnything override (SALT_JAVA_LINE); a lone or trailing U+2028 is accepted
+by both. No corpus block contains these characters, so no parity number changes.
+Proposed diff (tools/translate/macros.py; the class is written with literal characters,
+since `\u` escapes are a load error):
+```diff
++JAVA_DOT = "[^\n\r\x85  ]"  # java.util.regex `.` without DOTALL/UNIX_LINES
++
++def java_dot(pattern: str) -> str:
++    """Rewrite each unescaped `.` outside a bracket class as Java's line-bounded dot."""
++    return "".join(JAVA_DOT if tok == "." else tok for tok in _TOKEN.findall(pattern))
++
+ def portable(pattern: str) -> str:
+     """``expand`` followed by the Java-only syntax rewrites (currently ``\\Q...\\E``)."""
+-    return convert_quotes(expand(pattern))
++    return java_dot(convert_quotes(expand(pattern)))
+```
+Then regenerate `model/generated/`. Emitters already line-bound every terminal, so they are
+unaffected; the TextMate/W3C regex printers must accept the literal characters.

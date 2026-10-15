@@ -462,3 +462,4 @@ contexts:
       - {regex: '([+]*)', ci: true, name: PLUS}
       - {regex: "[\\s\_]*", ci: true}
       - {regex: "([^\\s\_].*)", ci: true, name: LABEL}
+    trim: false

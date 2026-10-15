@@ -39,6 +39,7 @@ GANTT_LANG_ID = "gantt-lang"
 FACTORY_SUFFIX = "Factory"
 PSYSTEM = "PSystem"
 ENGINE_KEY = "engine"
+DO_TRIM = "doTrim"  # I1: false = matched against the untrimmed line (SingleLineCommand2.java:76-81)
 EXIT_OK = 0
 
 Translator = Callable[[dict[str, Any]], Translated]
@@ -99,6 +100,7 @@ class Rule:
     parts: Part
     end: Part | None
     join_max_lines: int | None = None
+    untrimmed: bool = False
 
     def trees(self) -> tuple[Part, ...]:
         return (self.parts, self.end) if self.end is not None else (self.parts,)
@@ -131,7 +133,10 @@ def build_rules(
             ENGINE_KEY: cmd[ENGINE_KEY],
         }
         kind = KIND_OPAQUE if cmd["kind"] == KIND_OPAQUE else result.kind
-        rules.append(Rule(name, prov, kind, result.parts, result.end, result.join_max_lines))
+        untrimmed = cmd.get(DO_TRIM, True) is False
+        rules.append(
+            Rule(name, prov, kind, result.parts, result.end, result.join_max_lines, untrimmed)
+        )
     for item in data["unreachable"]:
         summary.unreachable[item["reason"].split(":")[0]] += 1
     return rules
@@ -148,6 +153,8 @@ def _entry(rule: Rule, parts: Part, end: Part | None) -> dict[str, Any]:
         entry["end"] = end
     if rule.join_max_lines is not None:
         entry["join"] = {"max_lines": rule.join_max_lines}
+    if rule.untrimmed:
+        entry["trim"] = False
     return entry
 
 

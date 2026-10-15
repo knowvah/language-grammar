@@ -38,7 +38,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     },
     {
       "order": 1,
@@ -72,7 +73,8 @@
         ]
       },
       "end": null,
-      "finalBracket": false
+      "finalBracket": false,
+      "doTrim": true
     }
   ],
   "unreachable": []

@@ -7,6 +7,7 @@ import yaml
 
 from tools.model.load import load_dir
 from tools.translate import run
+from tools.translate.iregex import translate_command
 from tools.translate.run import generate, main, model_id, rule_names
 
 SRC = "class C {\n  static IRegex getRegexConcat() {}\n}\n"
@@ -95,6 +96,63 @@ def test_decorator_emits_join_not_end() -> None:
     files, _ = generate({"F": factory("F", [deco])}, lambda _: SRC)
     entry = yaml.safe_load(files["gen-f.yaml"])["contexts"]["main"][0]
     assert entry["join"] == {"max_lines": 50} and "end" not in entry
+
+
+def test_do_trim_false_becomes_trim_false_on_single_entries() -> None:
+    untrimmed = {**cmd(0, "p.U"), "doTrim": False}
+    trimmed = {**cmd(1, "p.T"), "doTrim": True}
+    legacy = cmd(2, "p.L")  # extraction predating the field
+    other = {**cmd(3, "p.X", engine="Other"), "doTrim": False}  # engine-agnostic (UBrex too)
+    translators = {"IRegex": translate_command, "Other": translate_command}
+    data = {"F": factory("F", [untrimmed, trimmed, legacy, other])}
+    files, _ = generate(data, lambda _: SRC, translators)
+    entries = yaml.safe_load(files["gen-f.yaml"])["contexts"]["main"]
+    assert [e.get("trim") for e in entries] == [False, None, None, False]
+
+
+# git grep 'super(false, ' at 97a5992 lists 24 classes; CommandChartGrid is registered by no
+# factory, so 23 classes (25 instances: the two WBS item commands occur twice) are extracted.
+UNTRIMMED = {
+    "board.CommandBoardPlus",
+    "chart.command.CommandChartAnnotation",
+    "chart.command.CommandChartArea",
+    "chart.command.CommandChartBar",
+    "chart.command.CommandChartHAxis",
+    "chart.command.CommandChartLegend",
+    "chart.command.CommandChartLine",
+    "chart.command.CommandChartOrientation",
+    "chart.command.CommandChartScatter",
+    "chart.command.CommandChartStackMode",
+    "chart.command.CommandChartVAxis",
+    "mindmap.CommandMindMapOrgmode",
+    "mindmap.CommandMindMapPlus",
+    "salt.CommandAnything",
+    "wbs.CommandWBSItemNew",
+    "wbs.CommandWBSItemOld",
+    "wire.CommandComponent",
+    "wire.CommandGoto",
+    "wire.CommandMove",
+    "wire.CommandNewColumn",
+    "wire.CommandPrint",
+    "wire.CommandSpot",
+    "wire.CommandWLink",
+}
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_extracted_untrimmed_commands_and_generated_trim_agree() -> None:
+    extracted = run.load_extracted(ROOT / "extracted")
+    commands = [c for doc in extracted.values() for c in doc["commands"] if "doTrim" in c]
+    untrimmed = [c["class"].removeprefix("net.sourceforge.plantuml.") for c in commands]
+    flagged = {c for c, cmd in zip(untrimmed, commands, strict=True) if cmd["doTrim"] is False}
+    assert flagged == UNTRIMMED
+    assert sum(cmd["doTrim"] is False for cmd in commands) == 25
+    assert {c["kind"] for c in commands} == {"single"}
+    models = load_dir(ROOT / "model" / "generated")
+    generated = sum(
+        e.get("trim") is False for m in models.values() for ctx in m.contexts.values() for e in ctx
+    )
+    assert generated == 25
 
 
 def test_registry_extension_point() -> None:

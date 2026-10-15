@@ -90,7 +90,11 @@
         "end": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/part"}]},
         "join": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/join"}]},
         "require_pop": {"oneOf": [{"type": "null"}, {"const": true}]},
-        "reject": {"oneOf": [{"type": "null"}, {"const": true}]}
+        "reject": {"oneOf": [{"type": "null"}, {"const": true}]},
+        "emit": {"oneOf": [{"type": "null"}, {"const": false}]},
+        "gives": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/flag_name"}]},
+        "needs": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/flag_name"}]},
+        "trim": {"oneOf": [{"type": "null"}, {"const": false}]}
       },
       "if": {"required": ["remove"]},
       "then": {"maxProperties": 1}
@@ -101,6 +105,7 @@
     },
     "variable_name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
     "context_name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "flag_name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
     "part": {
       "oneOf": [
         {
@@ -186,6 +191,10 @@
         "join": {"$ref": "#/$defs/join"},
         "require_pop": {"const": true},
         "reject": {"const": true},
+        "emit": {"const": false},
+        "gives": {"$ref": "#/$defs/flag_name"},
+        "needs": {"$ref": "#/$defs/flag_name"},
+        "trim": {"const": false},
         "refined_by": {"$ref": "#/$defs/model_id"}
       },
       "allOf": [
@@ -193,6 +202,10 @@
         {"not": {"required": ["push", "set"]}},
         {"not": {"required": ["pop", "set"]}},
         {"if": {"required": ["require_pop"]}, "then": {"required": ["push"]}},
+        {
+          "if": {"required": ["trim"]},
+          "then": {"properties": {"kind": {"const": "single"}}}
+        },
         {
           "if": {"required": ["reject"]},
           "then": {

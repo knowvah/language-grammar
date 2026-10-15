@@ -17,6 +17,7 @@ import net.sourceforge.plantuml.PSystemBuilder;
 import net.sourceforge.plantuml.command.CommandDecoratorMultine;
 import net.sourceforge.plantuml.command.PSystemCommandFactory;
 import net.sourceforge.plantuml.command.SingleLineCommand2;
+import net.sourceforge.plantuml.command.UBrexSingleLineCommand2;
 import net.sourceforge.plantuml.regex.IRegex;
 import net.sourceforge.plantuml.regex.Pattern2;
 
@@ -31,7 +32,8 @@ import net.sourceforge.plantuml.regex.Pattern2;
  * net/sourceforge/plantuml/command/): SingleLineCommand2.java:53 {@code pattern};
  * CommandMultilines.java:45-46 {@code starting}/{@code ending}; CommandMultilines2.java:51,57
  * {@code starting}/{@code end} (Lazy); CommandMultilines3.java:47,53 {@code starting}/{@code
- * patternEnd}; CommandMultilinesBracket.java:46 {@code starting}; UBrexSingleLineCommand2.java:55;
+ * patternEnd}; CommandMultilinesBracket.java:46 {@code starting}; UBrexSingleLineCommand2.java:55; {@code doTrim} of both single-line bases (SingleLineCommand2.java:54,
+ * UBrexSingleLineCommand2.java:56);
  * UBrexCommandMultilines2.java:50,56; CommandDecoratorMultine.java:44 wraps a SingleLineCommand2
  * ({@code cmd}) and is emitted as a multiline whose start is that pattern. Factory order:
  * PSystemBuilder.java:133-200 (read from the private {@code factories} list, so conditional
@@ -53,6 +55,7 @@ public final class Extract {
     private static final String END = "end";
     private static final String NATURAL_GANTT = "NaturalGanttCommand";
     private static final String DECORATOR = "CommandDecoratorMultine";
+    private static final String DO_TRIM = "doTrim";
 
     /**
      * Engine dispatch registry: first walker whose {@code supports} returns true wins. T03 adds
@@ -191,6 +194,9 @@ public final class Extract {
         e.put(START, walk(startRegex(cmd, found), order, cmd, unreachable));
         e.put(END, spec.endField() == null ? null : walk(field(cmd, found.owner(), spec.endField()), order, cmd, unreachable));
         e.put("finalBracket", finalBracket(cmd));
+        if (cmd instanceof SingleLineCommand2<?> || cmd instanceof UBrexSingleLineCommand2<?>) {
+            e.put(DO_TRIM, doTrim(cmd));
+        }
         if (cmd instanceof CommandDecoratorMultine<?> d) {
             e.put("wrapper", DECORATOR);
             e.put("nbMaxLines", d.getNbMaxLines());
@@ -235,6 +241,16 @@ public final class Extract {
     /** Unwraps {@code Lazy<T>}; other values pass through. */
     private static Object resolve(Object value) {
         return value instanceof Lazy<?> lazy ? lazy.get() : value;
+    }
+
+    /**
+     * The {@code doTrim} flag of a single-line command: false means the pattern is matched against
+     * the untrimmed line (SingleLineCommand2.java:76-81, :93, :102; UBrexSingleLineCommand2.java
+     * has the same field). Read from the declaring class, never by name alone.
+     */
+    private static boolean doTrim(Object cmd) {
+        Class<?> owner = cmd instanceof SingleLineCommand2<?> ? SingleLineCommand2.class : UBrexSingleLineCommand2.class;
+        return (Boolean) Refl.field(cmd, owner, DO_TRIM);
     }
 
     private static boolean finalBracket(Object cmd) throws ReflectiveOperationException {

@@ -1,4 +1,10 @@
-"""Compiled rules of a resolved model, built lazily per context and cached."""
+"""Compiled rules of a resolved model, built lazily per context and cached.
+
+``trim: false`` (``untrimmed``) mirrors ``SingleLineCommand2(doTrim=false)``: the pattern
+is matched against ``Line.text``, the line as the command loop receives it
+(``SingleLineCommand2.java:76-81`` ``myTrim2`` returns the ``StringLocated`` untouched,
+``:93`` and ``:102`` match it), instead of ``Line.trimmed`` (``getTrimmed``, ``trin``).
+"""
 
 from __future__ import annotations
 
@@ -33,12 +39,16 @@ class Rule:
     target: str
     require_pop: bool = False
     reject: bool = False
+    gives: str = ""
+    needs: str = ""
+    untrimmed: bool = False
 
     def advance(self, body: list[Line], i: int, deadline: Deadline) -> int | None:
         """Index after this command starting at ``i``; ``None`` = no match or dropped."""
         if self.max_lines is not None:
             return scan_join(self.start, self.max_lines, body, i, deadline)
-        if not deadline.fullmatch(self.start, body[i].trimmed):
+        line = body[i].text if self.untrimmed else body[i].trimmed
+        if not deadline.fullmatch(self.start, line):
             return None
         if self.kind == KIND_OPAQUE:
             return len(body)
@@ -70,6 +80,9 @@ def build_rule(entry: Entry) -> Rule:
         target,
         bool(entry.get("require_pop")),
         bool(entry.get("reject")),
+        entry.get("gives", ""),
+        entry.get("needs", ""),
+        entry.get("trim") is False,
     )
 
 

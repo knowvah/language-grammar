@@ -9,6 +9,11 @@ Mirrors, at 97a5992:
 * ``core/DiagramType.java:69-92``: the diagram types come from the text after ``start``.
 * ``preproc2/ReadFilterQuoteComment.java:45-80``: ``'`` line comments and ``/' ... '/``
   block comments never reach the factories.
+* ``preproc/ReadLineReader.java:89-102``: ``BufferedReader.readLine`` ends a line at
+  ``\\n``, ``\\r`` or ``\\r\\n``, a leading U+FEFF is dropped and U+2013 becomes ``-``.
+  Nothing else touches the text (tabs and trailing blanks survive), so ``Line.text`` is
+  what ``SingleLineCommand2(doTrim=false)`` matches (``SingleLineCommand2.java:76-81,
+  :93, :102``); see ``tools.interp.rules``.
 * ``StringUtils.java:505-530`` (``trin``): lines are trimmed of every char ``<= ' '``.
 * ``EmbeddedDiagram.java:257-300`` and ``:77-78``: ``{{`` / ``{{type`` ... ``}}`` groups
   are glued into one multiline unit (``PSystemCommandFactory.java:288-307``).
@@ -25,8 +30,12 @@ not modelled by ``split_blocks``, which also sees comments the preprocessor woul
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
+LINE_BREAKS = re.compile(r"\r\n|\r|\n")
+BYTE_ORDER_MARK = "\ufeff"
+EN_DASH, HYPHEN = "\u2013", "-"
 TRIN_CHARS = "".join(chr(c) for c in range(ord(" ") + 1))
 START_WORD = "start"
 END_WORD = "end"
@@ -60,6 +69,11 @@ class Block:
     keyword: str | None
     body: list[Line]
     end: Line | None = None
+
+
+def read_line(raw: str) -> str:
+    """The text of a line as ``ReadLineReader.readLine`` hands it to the command loop."""
+    return raw.removeprefix(BYTE_ORDER_MARK).replace(EN_DASH, HYPHEN)
 
 
 def trin(text: str) -> str:
@@ -146,7 +160,7 @@ def split_block(block_text: str) -> Block:
     A block without a leading ``@start`` line is treated as body only (the harness may
     hand over bare bodies); ``keyword`` is then ``None``.
     """
-    raw = [t.rstrip("\r") for t in block_text.split("\n")]
+    raw = [read_line(t) for t in LINE_BREAKS.split(block_text)]
     lines = [Line(n, t, trin(t)) for n, t in enumerate(raw, start=1)]
     first = next((i for i, ln in enumerate(lines) if ln.trimmed), None)
     start: Line | None = None

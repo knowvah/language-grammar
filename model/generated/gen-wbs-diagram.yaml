@@ -482,6 +482,7 @@ contexts:
       - {literal: as, ci: true}
       - {regex: "[\\s\_]+", ci: true}
       - {regex: '([\p{L}\p{N}_]+)', ci: true, name: CODE}
+    trim: false
   - command: CommandWBSItemNew_44
     provenance: {class: net.sourceforge.plantuml.wbs.CommandWBSItemNew, file: src/main/java/net/sourceforge/plantuml/wbs/CommandWBSItemNew.java, line: 61, engine: IRegex}
     kind: single
@@ -499,6 +500,7 @@ contexts:
           seq:
           - {regex: "[\\s\_]+", ci: true}
           - {regex: "([^\\s\_].*)", ci: true, name: LABEL}
+    trim: false
   - command: CommandWBSItemMultilineNew
     provenance: {class: net.sourceforge.plantuml.wbs.CommandWBSItemMultilineNew, file: src/main/java/net/sourceforge/plantuml/wbs/CommandWBSItemMultilineNew.java, line: 71, engine: IRegex}
     kind: multiline
@@ -534,6 +536,7 @@ contexts:
       - {literal: as, ci: true}
       - {regex: "[\\s\_]+", ci: true}
       - {regex: '([\p{L}\p{N}_]+)', ci: true, name: CODE}
+    trim: false
   - command: CommandWBSItemOld_47
     provenance: {class: net.sourceforge.plantuml.wbs.CommandWBSItemOld, file: src/main/java/net/sourceforge/plantuml/wbs/CommandWBSItemOld.java, line: 62, engine: IRegex}
     kind: single
@@ -551,6 +554,7 @@ contexts:
           seq:
           - {regex: "[\\s\_]+", ci: true}
           - {regex: "([^\\s\_].*)", ci: true, name: LABEL}
+    trim: false
   - command: CommandWBSItemMultilineOld
     provenance: {class: net.sourceforge.plantuml.wbs.CommandWBSItemMultilineOld, file: src/main/java/net/sourceforge/plantuml/wbs/CommandWBSItemMultilineOld.java, line: 72, engine: IRegex}
     kind: multiline

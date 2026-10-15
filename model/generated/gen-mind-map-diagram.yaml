@@ -483,6 +483,7 @@ contexts:
       - {regex: '(_)?', ci: true, name: SHAPE}
       - {regex: "[\\s\_]*", ci: true}
       - {regex: (.*), ci: true, name: LABEL}
+    trim: false
   - command: CommandMindMapRoot
     provenance: {class: net.sourceforge.plantuml.mindmap.CommandMindMapRoot, file: src/main/java/net/sourceforge/plantuml/mindmap/CommandMindMapRoot.java, line: 55, engine: IRegex}
     kind: single
@@ -501,6 +502,7 @@ contexts:
       - {regex: '(_)?', ci: true, name: SHAPE}
       - {regex: "[\\s\_]*", ci: true}
       - {regex: (.*), ci: true, name: LABEL}
+    trim: false
   - command: CommandMindMapDirection
     provenance: {class: net.sourceforge.plantuml.mindmap.CommandMindMapDirection, file: src/main/java/net/sourceforge/plantuml/mindmap/CommandMindMapDirection.java, line: 56, engine: IRegex}
     kind: single
