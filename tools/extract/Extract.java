@@ -63,7 +63,7 @@ public final class Extract {
 
     static {
         WALKERS.add(new IRegexWalker());
-        // T03 hook: WALKERS.add(new UBrexWalker());
+        WALKERS.add(new UBrexWalker()); // T03 hook
         WALKERS.add(new UBrexPendingWalker());
     }
 
@@ -87,7 +87,7 @@ public final class Extract {
 
     private Extract() {}
 
-    public static void main(String[] args) throws IOException, ReflectiveOperationException {
+    public static void main(String[] args) throws Exception {
         if (args.length != 1) {
             throw new IllegalArgumentException("usage: Extract <outDir>");
         }
@@ -108,6 +108,7 @@ public final class Extract {
             commandCounts.put(name, ((List<?>) doc.get("commands")).size());
             unreachableTotal += ((List<?>) doc.get("unreachable")).size();
         }
+        GanttLangDump.main(new String[] {outDir.toString()}); // T03: extracted/gantt-lang.json
         System.err.println(Json.compact(summary(factories.size(), commandCounts, unreachableTotal)));
     }
 

@@ -1164,7 +1164,130 @@
       "class": "net.sourceforge.plantuml.ebnf.UBrexCommandComment",
       "kind": "single",
       "engine": "UBrex",
-      "start": null,
+      "start": {
+        "t": "ub-CompositeList",
+        "name": null,
+        "pattern": null,
+        "children": [
+          {
+            "t": "ub-ChallengeZeroOrMore",
+            "name": null,
+            "pattern": null,
+            "children": [
+              {
+                "t": "ub-ChallengeCharClass",
+                "name": null,
+                "pattern": null,
+                "children": [],
+                "charClass": "SPACE",
+                "negated": false
+              }
+            ]
+          },
+          {
+            "t": "ub-ChallengeSingleChar",
+            "name": null,
+            "pattern": "(",
+            "children": [],
+            "caseMode": "CASE_INSENSITIVE"
+          },
+          {
+            "t": "ub-ChallengeSingleChar",
+            "name": null,
+            "pattern": "*",
+            "children": [],
+            "caseMode": "CASE_INSENSITIVE"
+          },
+          {
+            "t": "ub-CompositeNamed",
+            "name": "COMMENT",
+            "pattern": null,
+            "children": [
+              {
+                "t": "ub-ChallengeUpTo",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-CompositeList",
+                    "name": null,
+                    "pattern": null,
+                    "children": [
+                      {
+                        "t": "ub-ChallengeSingleChar",
+                        "name": null,
+                        "pattern": "*",
+                        "children": [],
+                        "caseMode": "CASE_INSENSITIVE"
+                      },
+                      {
+                        "t": "ub-ChallengeSingleChar",
+                        "name": null,
+                        "pattern": ")",
+                        "children": [],
+                        "caseMode": "CASE_INSENSITIVE"
+                      },
+                      {
+                        "t": "ub-ChallengeZeroOrMore",
+                        "name": null,
+                        "pattern": null,
+                        "children": [
+                          {
+                            "t": "ub-ChallengeCharClass",
+                            "name": null,
+                            "pattern": null,
+                            "children": [],
+                            "charClass": "SPACE",
+                            "negated": false
+                          }
+                        ]
+                      },
+                      {"t": "ub-ChallengeEndOfText", "name": null, "pattern": null, "children": []}
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "t": "ub-CompositeList",
+            "name": null,
+            "pattern": null,
+            "children": [
+              {
+                "t": "ub-ChallengeSingleChar",
+                "name": null,
+                "pattern": "*",
+                "children": [],
+                "caseMode": "CASE_INSENSITIVE"
+              },
+              {
+                "t": "ub-ChallengeSingleChar",
+                "name": null,
+                "pattern": ")",
+                "children": [],
+                "caseMode": "CASE_INSENSITIVE"
+              },
+              {
+                "t": "ub-ChallengeZeroOrMore",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeCharClass",
+                    "name": null,
+                    "pattern": null,
+                    "children": [],
+                    "charClass": "SPACE",
+                    "negated": false
+                  }
+                ]
+              },
+              {"t": "ub-ChallengeEndOfText", "name": null, "pattern": null, "children": []}
+            ]
+          }
+        ]
+      },
       "end": null,
       "finalBracket": false
     },
@@ -1273,21 +1396,163 @@
       "class": "net.sourceforge.plantuml.ebnf.UBrexCommandEbnfMultilines",
       "kind": "multiline",
       "engine": "UBrex",
-      "start": null,
-      "end": null,
+      "start": {
+        "t": "ub-CompositeNamed",
+        "name": "LINE",
+        "pattern": null,
+        "children": [
+          {
+            "t": "ub-CompositeList",
+            "name": null,
+            "pattern": null,
+            "children": [
+              {
+                "t": "ub-CompositeList",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeCharSet",
+                    "name": null,
+                    "pattern": "_",
+                    "children": [],
+                    "chars": "_",
+                    "classes": ["ALPHA_NUMERIC"],
+                    "negated": false,
+                    "caseMode": "CASE_INSENSITIVE"
+                  }
+                ]
+              },
+              {
+                "t": "ub-CompositeList",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeZeroOrMore",
+                    "name": null,
+                    "pattern": null,
+                    "children": [
+                      {
+                        "t": "ub-ChallengeCharSet",
+                        "name": null,
+                        "pattern": "-_",
+                        "children": [],
+                        "chars": "-_",
+                        "classes": ["ALPHA_NUMERIC"],
+                        "negated": false,
+                        "caseMode": "CASE_INSENSITIVE"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "t": "ub-CompositeList",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeZeroOrMore",
+                    "name": null,
+                    "pattern": null,
+                    "children": [
+                      {
+                        "t": "ub-ChallengeCharClass",
+                        "name": null,
+                        "pattern": null,
+                        "children": [],
+                        "charClass": "SPACE",
+                        "negated": false
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "t": "ub-CompositeList",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeSingleChar",
+                    "name": null,
+                    "pattern": "=",
+                    "children": [],
+                    "caseMode": "CASE_INSENSITIVE"
+                  }
+                ]
+              },
+              {
+                "t": "ub-CompositeList",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeZeroOrMore",
+                    "name": null,
+                    "pattern": null,
+                    "children": [
+                      {
+                        "t": "ub-ChallengeCharClass",
+                        "name": null,
+                        "pattern": null,
+                        "children": [],
+                        "charClass": "ANY",
+                        "negated": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "end": {
+        "t": "ub-CompositeList",
+        "name": null,
+        "pattern": null,
+        "children": [
+          {
+            "t": "ub-ChallengeOneOrMore",
+            "name": null,
+            "pattern": null,
+            "children": [
+              {
+                "t": "ub-CompositeList",
+                "name": null,
+                "pattern": null,
+                "children": [
+                  {
+                    "t": "ub-ChallengeUpTo",
+                    "name": null,
+                    "pattern": null,
+                    "children": [
+                      {
+                        "t": "ub-ChallengeSingleChar",
+                        "name": null,
+                        "pattern": ";",
+                        "children": [],
+                        "caseMode": "CASE_INSENSITIVE"
+                      }
+                    ]
+                  },
+                  {
+                    "t": "ub-ChallengeSingleChar",
+                    "name": null,
+                    "pattern": ";",
+                    "children": [],
+                    "caseMode": "CASE_INSENSITIVE"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       "finalBracket": false
     }
   ],
-  "unreachable": [
-    {
-      "class": "net.sourceforge.plantuml.ebnf.UBrexCommandComment",
-      "order": 43,
-      "reason": "ubrex-pending"
-    },
-    {
-      "class": "net.sourceforge.plantuml.ebnf.UBrexCommandEbnfMultilines",
-      "order": 47,
-      "reason": "ubrex-pending"
-    }
-  ]
+  "unreachable": []
 }

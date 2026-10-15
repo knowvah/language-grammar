@@ -44,8 +44,15 @@ def runs(tmp_path_factory):
     return first, second, stderr
 
 
+GANTT_LANG = "gantt-lang"  # T03 sentence-part dump, not a factory document
+
+
 def _docs(directory: Path) -> dict[str, dict]:
-    return {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in directory.glob("*.json")}
+    return {
+        p.stem: json.loads(p.read_text(encoding="utf-8"))
+        for p in directory.glob("*.json")
+        if p.stem != GANTT_LANG
+    }
 
 
 def _expected_factories() -> list[str]:
@@ -123,25 +130,26 @@ def test_every_unwalked_command_is_listed_unreachable(runs):
                 assert (c["class"], c["order"]) in listed, c["class"]
 
 
-def test_ubrex_commands_pending_with_null_start(runs):
+def test_ubrex_commands_walked_or_listed_unreachable(runs):
+    """After T03, UBrex commands carry ub-* trees; only NaturalGanttCommand stays unreachable."""
     docs = _docs(runs[0])
     ubrex = [c for d in docs.values() for c in d["commands"] if c["engine"] == "UBrex"]
     assert ubrex
-    assert all(c["start"] is None for c in ubrex)
-    pending = {
-        (u["class"], u["order"])
-        for d in docs.values()
-        for u in d["unreachable"]
-        if u["reason"] == "ubrex-pending"
-    }
-    assert {(c["class"], c["order"]) for c in ubrex} <= pending
+    unreachable = {(u["class"], u["order"]) for d in docs.values() for u in d["unreachable"]}
+    for c in ubrex:
+        if c["start"] is None:
+            assert (c["class"], c["order"]) in unreachable
+        else:
+            assert c["start"]["t"].startswith("ub-")
+    reasons = {u["reason"] for d in docs.values() for u in d["unreachable"]}
+    assert "ubrex-pending" not in reasons
 
 
 def test_gantt_shadowing_field_resolved_from_base_class(runs):
     commands = _docs(runs[0])["GanttDiagramFactory"]["commands"]
     between = next(c for c in commands if c["class"].endswith(".CommandPrintBetween"))
     assert between["engine"] == "UBrex"
-    assert between["start"] is None
+    assert between["start"]["t"].startswith("ub-")
 
 
 def test_multiline_commands_carry_start_and_end(runs):
