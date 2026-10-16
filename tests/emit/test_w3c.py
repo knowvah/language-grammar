@@ -296,7 +296,7 @@ def test_structure_push_pop_and_multiline(lossy_result: tuple[str, list[w3c.Loss
     )
     assert prods["class_line_command"].count("\n") == 0
     assert prods["class_line_command"].split(" | ")[0] == "class_command_ident"
-    assert prods["START_SALT"].startswith('[#x20#x9]* ("@" | "\\") [Ss] [Tt] [Aa] [Rr] [Tt] [Ss]')
+    assert prods["START_SALT"].startswith('[#x20#x9]* ("@" | "\\") "start" [Ss] [Aa] [Ll] [Tt]')
 
 
 def test_emit_w3c_returns_text_only(lossy_result: tuple[str, list[w3c.Lossy]]) -> None:

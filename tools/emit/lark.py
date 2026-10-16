@@ -318,6 +318,11 @@ class _Diagram(FlowBuilder):
 END_TERMINAL = "END_BLOCK"
 
 
+def _ascii_ci(keyword: str) -> str:
+    """``keyword`` with ASCII-only case folding (``[uU][mM][lL]``), unlike Lark's ``/i``."""
+    return render_literal_body(literal_to_python(keyword, ci=True))
+
+
 def _blocks(
     groups: dict[str, list[str]], start_map: dict[str, list[str]]
 ) -> tuple[list[str], list[str]]:
@@ -329,10 +334,10 @@ def _blocks(
         body = f" ({' | '.join(bodies)})" if bodies else ""
         rules.append(f"block_{keyword}: START_{upper} _NL{body} {END_TERMINAL}")
         # A prefix test, like DiagramType.check: `@startumlfoo` is `uml` (see keywords.py).
-        start = rf"/[ \t]*{START_DIRECTIVE}{keyword}[^\r\n]*/i"
+        start = rf"/[ \t]*{START_DIRECTIVE}{_ascii_ci(keyword)}[^\r\n]*/"
         terminals.append(f"START_{upper}: {start}")
     rules.append(f"block_other: START_OTHER _NL (_BODY_LINE? _NL)* {END_TERMINAL}")
-    terminals.append(f"START_OTHER: /{other_start_pattern([*start_map, *groups])}/i")
+    terminals.append(f"START_OTHER: /{other_start_pattern([*start_map, *groups], _ascii_ci)}/")
     return rules, terminals
 
 

@@ -14,7 +14,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startuml)",
+      "begin": "^\\s*([@\\\\]start(?i:uml))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -40,7 +40,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startboard)",
+      "begin": "^\\s*([@\\\\]start(?i:board))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -66,7 +66,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startfiles)",
+      "begin": "^\\s*([@\\\\]start(?i:files))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -92,7 +92,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startgit)",
+      "begin": "^\\s*([@\\\\]start(?i:git))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -118,7 +118,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]starthcl)",
+      "begin": "^\\s*([@\\\\]start(?i:hcl))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -144,7 +144,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startyaml)",
+      "begin": "^\\s*([@\\\\]start(?i:yaml))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -170,7 +170,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startgantt)",
+      "begin": "^\\s*([@\\\\]start(?i:gantt))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -196,7 +196,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startproject)",
+      "begin": "^\\s*([@\\\\]start(?i:project))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -222,7 +222,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startjson)",
+      "begin": "^\\s*([@\\\\]start(?i:json))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -248,7 +248,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startcreole)",
+      "begin": "^\\s*([@\\\\]start(?i:creole))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -274,7 +274,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startdef)",
+      "begin": "^\\s*([@\\\\]start(?i:def))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -300,7 +300,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startebnf)",
+      "begin": "^\\s*([@\\\\]start(?i:ebnf))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -326,7 +326,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startregex)",
+      "begin": "^\\s*([@\\\\]start(?i:regex))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -352,7 +352,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startsprites)",
+      "begin": "^\\s*([@\\\\]start(?i:sprites))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -378,7 +378,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startmindmap)",
+      "begin": "^\\s*([@\\\\]start(?i:mindmap))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -404,7 +404,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startwbs)",
+      "begin": "^\\s*([@\\\\]start(?i:wbs))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -430,7 +430,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startbpm)",
+      "begin": "^\\s*([@\\\\]start(?i:bpm))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -456,7 +456,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startchart)",
+      "begin": "^\\s*([@\\\\]start(?i:chart))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -482,7 +482,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startchen)",
+      "begin": "^\\s*([@\\\\]start(?i:chen))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -508,7 +508,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startflow)",
+      "begin": "^\\s*([@\\\\]start(?i:flow))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -534,7 +534,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startwire)",
+      "begin": "^\\s*([@\\\\]start(?i:wire))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -560,7 +560,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startnwdiag)",
+      "begin": "^\\s*([@\\\\]start(?i:nwdiag))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -586,7 +586,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startpacketdiag)",
+      "begin": "^\\s*([@\\\\]start(?i:packetdiag))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -612,7 +612,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startsalt)",
+      "begin": "^\\s*([@\\\\]start(?i:salt))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -638,7 +638,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startcrash)",
+      "begin": "^\\s*([@\\\\]start(?i:crash))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -664,7 +664,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startditaa)",
+      "begin": "^\\s*([@\\\\]start(?i:ditaa))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -690,7 +690,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startdot)",
+      "begin": "^\\s*([@\\\\]start(?i:dot))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -716,7 +716,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startlatex)",
+      "begin": "^\\s*([@\\\\]start(?i:latex))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -742,7 +742,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]startmath)",
+      "begin": "^\\s*([@\\\\]start(?i:math))",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"
@@ -768,7 +768,7 @@
     },
     {
       "name": "meta.diagram.plantuml",
-      "begin": "(?i)^\\s*([@\\\\]start(?!(?:packetdiag|mindmap|project|sprites|creole|nwdiag|board|chart|crash|ditaa|files|gantt|latex|regex|chen|ebnf|flow|json|math|salt|wire|yaml|bpm|def|dot|git|hcl|uml|wbs))(?=[^\\r\\n])\\S*)",
+      "begin": "^\\s*([@\\\\]start(?!(?:(?i:packetdiag)|(?i:mindmap)|(?i:project)|(?i:sprites)|(?i:creole)|(?i:nwdiag)|(?i:board)|(?i:chart)|(?i:crash)|(?i:ditaa)|(?i:files)|(?i:gantt)|(?i:latex)|(?i:regex)|(?i:chen)|(?i:ebnf)|(?i:flow)|(?i:json)|(?i:math)|(?i:salt)|(?i:wire)|(?i:yaml)|(?i:bpm)|(?i:def)|(?i:dot)|(?i:git)|(?i:hcl)|(?i:uml)|(?i:wbs)))(?=[^\\r\\n])\\S*)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.start.plantuml"

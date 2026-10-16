@@ -13,6 +13,9 @@ All notable changes to this project are documented here. The format follows
 - Lark keeps zero-width guards (lookahead/lookbehind-only Parts such as `D_NOT_FORBIDDEN`):
   each is folded into the terminals around it (`tools/emit/guards.py`) instead of being
   emitted as an optional terminal Earley could skip (#3).
+- Start lines follow upstream case rules in all three grammars: the word `start` is
+  case-sensitive (`@STARTUML` opens no block) and the keyword folds ASCII only (`@startſalt`
+  is an unknown word, not `salt`). Lark no longer uses its Unicode-folding `/i` flag here (#14).
 
 ### Added
 - TextMate frames a start word that no keyword covers (`@startjcckit`) as an opaque

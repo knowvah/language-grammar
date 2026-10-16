@@ -201,7 +201,7 @@ def _group_rules(models: list[ResolvedModel], repository: dict[str, Rule]) -> li
 def _framed(start: str, patterns: list[Rule]) -> Rule:
     return {
         "name": BLOCK_SCOPE,
-        "begin": f"(?i)^\\s*({start})",
+        "begin": f"^\\s*({start})",
         "beginCaptures": {"1": {"name": START_SCOPE}},
         "end": f"^\\s*({END_DIRECTIVE}[A-Za-z0-9]*)",
         "endCaptures": {"1": {"name": END_SCOPE}},
@@ -210,13 +210,20 @@ def _framed(start: str, patterns: list[Rule]) -> Rule:
 
 
 def _block(keyword: str) -> Rule:
-    return _framed(f"{START_DIRECTIVE}{keyword}", [{"include": f"#diagram_{keyword}"}])
+    return _framed(f"{START_DIRECTIVE}{_fold(keyword)}", [{"include": f"#diagram_{keyword}"}])
 
 
 def _other_block(keywords: Sequence[str]) -> Rule:
     """A start word no keyword covers: PSystemUnsupported, any body (see keywords.py)."""
     # At least one character must follow `start` (StartUtils.isStartDirective).
-    return _framed(f"{START_DIRECTIVE}{uncovered_lookahead(keywords)}(?=[^\\r\\n])\\S*", [])
+    other = uncovered_lookahead(keywords, _fold)
+    return _framed(f"{START_DIRECTIVE}{other}(?=[^\\r\\n])\\S*", [])
+
+
+def _fold(keyword: str) -> str:
+    """The keyword folds case, ``start`` does not (see keywords.py). Oniguruma's ``(?i:...)``
+    also folds non-ASCII letters; a highlighting approximation."""
+    return f"(?i:{keyword})"
 
 
 def emit_textmate(resolved: ResolvedModels) -> dict[str, Any]:
