@@ -22,7 +22,6 @@ from tools.config import PIN_SHA, require
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = REPO_ROOT / "reports" / "oracle-cache"
 BUILD_DIR = REPO_ROOT / "build" / "java"
-PIN_FILE = REPO_ROOT / "upstream-pin.json"
 # Bump when Oracle.java verdict semantics change, so cached verdicts are not reused.
 # 2: resolve !include relative to the source file (SourceFileReader.java:79).
 ORACLE_VERSION = 2
@@ -49,8 +48,6 @@ class OracleError(Exception):
 
 
 def default_pin() -> str:
-    if PIN_FILE.exists():
-        return str(json.loads(PIN_FILE.read_text())["sha"])
     return PIN_SHA
 
 

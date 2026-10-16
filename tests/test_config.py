@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -6,7 +7,8 @@ from tools import config
 from tools.config import ConfigError, require, resolve
 
 HOME = Path("/home/tester")
-PIN_SHA = "97a5992201a7b1bc5d4063a81da609fe7387fede"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PIN_SHA = json.loads((REPO_ROOT / "upstream-pin.json").read_text())["sha"]
 STOCK_JAR = HOME / "git/knowvah/plantuml-ts/oracle/dist/stock" / f"plantuml-stock-{PIN_SHA}.jar"
 
 
@@ -72,3 +74,14 @@ def test_require_unknown_name_raises_config_error():
 
 def test_env_var_table_covers_every_field():
     assert set(config.ENV_VARS) == {"jar", "src", "vega", "plantuml_ts", "pdiff"}
+
+
+def test_load_pin_reads_the_pin_file(tmp_path):
+    pin = {"sha": "abc123", "version": "9.9", "repo": "https://example.invalid/p"}
+    (tmp_path / config.PIN_FILE).write_text(json.dumps(pin))
+    assert config.load_pin(tmp_path) == pin
+
+
+def test_pin_sha_comes_from_upstream_pin_json():
+    assert config.PIN_SHA == PIN_SHA
+    assert config.load_pin(config.REPO_ROOT)["sha"] == config.PIN_SHA

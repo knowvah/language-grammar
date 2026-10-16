@@ -542,9 +542,10 @@ upstream commit and the hand-written `model/`. To move the pin to a new commit `
 (prerequisites: the stock jar built from that commit, a PlantUML checkout containing it,
 and the three corpora; see "Troubleshooting" for the environment variables):
 
-1. **Pin.** Edit `upstream-pin.json` (`sha`, `version`) and `PIN_SHA` in `tools/config.py`
-   (the default jar name and the provenance reader use it), then point `PLANTUML_JAR` at the new jar. The oracle cache key
-   contains the sha, so cached verdicts of the old pin are not reused.
+1. **Pin.** Edit `upstream-pin.json` (`sha`, `version`), the only place the pin is stored
+   (`tools/config.py` reads `PIN_SHA` from it for the default jar name and the provenance
+   reader), then point `PLANTUML_JAR` at the new jar. The oracle cache key contains the sha,
+   so cached verdicts of the old pin are not reused.
 2. **Extract.** `uv run python -m tools.extract.build` compiles the Java harness against
    the jar; `uv run python -m tools.extract.run` rewrites `extracted/*.json` (one file per
    factory in `PSystemBuilder` order). Review `git diff extracted/`: added, removed or
