@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from tools.interp.compile import compile_part
-from tools.interp.scan import Deadline, scan_bracket, scan_join, scan_multiline
+from tools.interp.factories import NON_COMMAND_FACTORIES
+from tools.interp.scan import Deadline, Join, scan_bracket, scan_join, scan_multiline
 from tools.interp.source import Line
 from tools.model import Entry, ResolvedModel
 
@@ -34,7 +35,7 @@ class Rule:
     kind: str
     start: Any
     end: Any
-    max_lines: int | None
+    join: Join | None
     action: str
     target: str
     require_pop: bool = False
@@ -42,25 +43,26 @@ class Rule:
     gives: str = ""
     needs: str = ""
     untrimmed: bool = False
+    glue_units: bool = True
 
     def advance(self, body: list[Line], i: int, deadline: Deadline) -> int | None:
         """Index after this command starting at ``i``; ``None`` = no match or dropped."""
-        if self.max_lines is not None:
-            return scan_join(self.start, self.max_lines, body, i, deadline)
+        if self.join is not None:
+            return scan_join(self.join, body, i, deadline)
         line = body[i].text if self.untrimmed else body[i].trimmed
         if not deadline.fullmatch(self.start, line):
             return None
         if self.kind == KIND_OPAQUE:
             return len(body)
         if self.kind == KIND_MULTILINE:
-            return scan_multiline(self.end, body, i, deadline)
+            return scan_multiline(self.end, body, i, deadline, self.glue_units)
         if self.kind == KIND_BRACKET:
-            return scan_bracket(body, i)
+            return scan_bracket(body, i, self.glue_units)
         return i + 1
 
 
-def build_rule(entry: Entry) -> Rule:
-    """Compile a resolved command entry."""
+def build_rule(entry: Entry, glue_units: bool = True) -> Rule:
+    """Compile a resolved command entry; ``glue_units`` is false for plain-line factories."""
     action, target = ACTION_NONE, ""
     if entry.get("pop"):
         action = ACTION_POP
@@ -68,14 +70,14 @@ def build_rule(entry: Entry) -> Rule:
         if key in entry:
             action, target = key, entry[key]
     end = compile_part(entry["end"]) if "end" in entry else None
-    max_lines = entry["join"]["max_lines"] if "join" in entry else None
     start = compile_part(entry["parts"])
+    join = Join(start, entry["join"]["max_lines"], glue_units) if "join" in entry else None
     return Rule(
         entry["command"],
         entry["kind"],
         start,
         end,
-        max_lines,
+        join,
         action,
         target,
         bool(entry.get("require_pop")),
@@ -83,6 +85,7 @@ def build_rule(entry: Entry) -> Rule:
         entry.get("gives", ""),
         entry.get("needs", ""),
         entry.get("trim") is False,
+        glue_units,
     )
 
 
@@ -96,5 +99,6 @@ class RuleBook:
         """Rules of ``context``; ``KeyError`` if the context does not exist."""
         key = (model.id, context)
         if key not in self._cache:
-            self._cache[key] = [build_rule(e) for e in model.contexts[context]]
+            glue = model.factory not in NON_COMMAND_FACTORIES
+            self._cache[key] = [build_rule(e, glue) for e in model.contexts[context]]
         return self._cache[key]

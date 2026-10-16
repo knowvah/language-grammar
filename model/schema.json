@@ -11,6 +11,7 @@
     "layer": {"enum": ["document", "preproc", "diagram", "shared"]},
     "diagram": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
     "factory": {"$ref": "#/$defs/factory_name"},
+    "empty_needs_end": {"type": "boolean"},
     "start_map": {
       "type": "object",
       "propertyNames": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
@@ -49,7 +50,9 @@
     {
       "if": {"properties": {"layer": {"const": "diagram"}}, "required": ["layer"]},
       "then": {"required": ["diagram"]},
-      "else": {"not": {"anyOf": [{"required": ["diagram"]}, {"required": ["factory"]}]}}
+      "else": {"not": {"anyOf": [
+        {"required": ["diagram"]}, {"required": ["factory"]}, {"required": ["empty_needs_end"]}
+      ]}}
     },
     {
       "if": {"properties": {"layer": {"const": "document"}}, "required": ["layer"]},

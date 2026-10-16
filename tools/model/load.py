@@ -169,6 +169,7 @@ def _to_model(doc: dict[str, Any], path: Path) -> Model:
         contexts=doc.get("contexts", {}),
         factory=doc.get("factory"),
         start_map={k: list(v) for k, v in doc.get("start_map", {}).items()},
+        empty_needs_end=bool(doc.get("empty_needs_end", False)),
         overrides=doc.get(OVERRIDES, {}),
         insert_before=doc.get(INSERT_BEFORE, {}),
         insert_after=doc.get(INSERT_AFTER, {}),

@@ -130,6 +130,7 @@ class _Resolver:
             factory=model.factory,
             start_map=model.start_map,
             includes=tuple(scope[1:]),
+            empty_needs_end=model.empty_needs_end,
         )
 
     @staticmethod

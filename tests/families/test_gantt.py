@@ -264,7 +264,7 @@ def test_every_patch_key_matches_a_gantt_rule(
 
 # reject id -> (generated rule, samples the generated rule matches)
 REJECT_SAMPLES = {
-    "CommandColorTaskError": ("CommandColorTask", ["[A] #zzz", "[A] #red/#ab", "[A] #redé"]),
+    "CommandColorTaskError": ("CommandColorTask", ["[A] #zzz", "[A] #red/#ab", "[A] #red_9"]),
     "CommandWeekNumberStrategyError": (
         "CommandWeekNumberStrategy",
         ["week start on mon 9999999999"],

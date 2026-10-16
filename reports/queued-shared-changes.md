@@ -957,3 +957,7 @@ verdicts are unchanged (accepted).
 +    ("license", "single-line-license"),
 +    ("version", "single-line-version"),
 ```
+- json+board-files-git / no `{{ }}` gluing in non-command joins → done (consolidation A).
+- single-line / truncated @startuml → done via `empty_needs_end` (consolidation A).
+- single-line / KEYWORD_FAMILY gaps → done (consolidation A).
+- salt / Java `.` semantics → done in the interpreter via tools/model/java_regex.py (consolidation A); model text stays Java.

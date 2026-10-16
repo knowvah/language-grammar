@@ -19,6 +19,11 @@ lines drops the candidate so the next command is tried.
   U+E100 (``utils/BlocLines.java:296``) and must fully match ``parts``; the smallest k
   wins, k = 1 is the single-line case, and no match within the cap drops the command.
 
+Factories that are not ``PSystemCommandFactory`` subclasses (``PSystemAbstractFactory``
+readers such as ``JsonDiagramFactory`` / ``FilesDiagramFactory``, which take plain lines
+from ``jsondiagram/StyleExtractor.java:63-103``) do not glue ``{{ ... }}``: the scanners
+take ``glue=False`` for their rules.
+
 Known gaps (not representable in the model): ``isLineConsistent`` (abstract, per
 command), ``finalVerification`` hooks, and the ``MultilinesStrategy.REMOVE_STARTING_QUOTE`` line
 filter (``MultilinesStrategy.java``; ``'`` lines are already gone, see ``source``).
@@ -28,6 +33,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from tools.interp.source import Line, embedded_type, is_embedded_end
@@ -69,9 +75,26 @@ class Deadline:
             raise BlockTimeout from exc
 
 
-def unit_end(body: list[Line], j: int) -> int:
-    """End (exclusive) of the unit starting at ``j`` (``PSystemCommandFactory.java:288``)."""
-    if embedded_type(body[j].text) is None:
+@dataclass(frozen=True)
+class Join:
+    """A ``join`` rule: the pattern for the joined lines and the line cap.
+
+    ``glue_units`` is false for factories that are not ``PSystemCommandFactory``
+    subclasses: they read plain lines, so ``{{ ... }}`` is not one unit
+    (see ``tools.interp.factories``).
+    """
+
+    start: Any
+    max_lines: int
+    glue_units: bool = True
+
+
+def unit_end(body: list[Line], j: int, glue: bool = True) -> int:
+    """End (exclusive) of the unit starting at ``j`` (``PSystemCommandFactory.java:288``).
+
+    With ``glue`` false every line is its own unit.
+    """
+    if not glue or embedded_type(body[j].text) is None:
         return j + 1
     nested = 1
     for k in range(j + 1, len(body)):
@@ -84,22 +107,24 @@ def unit_end(body: list[Line], j: int) -> int:
     return len(body)
 
 
-def scan_multiline(end: Any, body: list[Line], i: int, deadline: Deadline) -> int | None:
+def scan_multiline(
+    end: Any, body: list[Line], i: int, deadline: Deadline, glue: bool = True
+) -> int | None:
     """Index after a ``multiline`` command starting at ``i``, or ``None`` (dropped)."""
     j = i
     while j < len(body):
-        j = unit_end(body, j)
+        j = unit_end(body, j, glue)
         if j - i > 1 and deadline.fullmatch(end, body[j - 1].trimmed):
             return j
     return None
 
 
-def scan_bracket(body: list[Line], i: int) -> int | None:
+def scan_bracket(body: list[Line], i: int, glue: bool = True) -> int | None:
     """Index after a ``multiline-bracket`` command starting at ``i``, or ``None``."""
     level = 1
     j = i
     while j < len(body):
-        nxt = unit_end(body, j)
+        nxt = unit_end(body, j, glue)
         for k in range(max(j, i + 1), nxt):
             text = body[k].trimmed
             level += text.endswith(BRACKET_OPEN) - text.endswith(BRACKET_CLOSE)
@@ -111,20 +136,18 @@ def scan_bracket(body: list[Line], i: int) -> int | None:
     return None
 
 
-def scan_join(
-    start: Any, max_lines: int, body: list[Line], i: int, deadline: Deadline
-) -> int | None:
+def scan_join(join: Join, body: list[Line], i: int, deadline: Deadline) -> int | None:
     """Index after a ``join`` command starting at ``i``, or ``None`` (dropped)."""
     j = i
-    for _ in range(max_lines + 1):
+    for _ in range(join.max_lines + 1):
         if j >= len(body):
             return None
-        j = unit_end(body, j)
+        j = unit_end(body, j, join.glue_units)
         joined = JOINER.join(line.trimmed for line in body[i:j])
-        if deadline.fullmatch(start, joined):
+        if deadline.fullmatch(join.start, joined):
             return j
         # No extension of joined + JOINER can match, so no larger k can: stop early.
         # Without this an uncapped join is O(n^2) per line on long blocks.
-        if not deadline.prefix(start, joined + JOINER):
+        if not deadline.prefix(join.start, joined + JOINER):
             return None
     return None

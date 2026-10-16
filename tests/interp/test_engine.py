@@ -224,6 +224,11 @@ def test_uncompilable_model_regex_gives_error_status() -> None:
     )
 
 
+def test_unsupported_java_syntax_gives_error_status() -> None:
+    verdict = accepts(_single_rule_models({"regex": "[a[b]]"}), uml("x"))
+    assert (verdict["accepted"], verdict["status"]) == (False, "error")
+
+
 def test_unresolved_ref_and_missing_context_give_error_status() -> None:
     assert accepts(_single_rule_models({"ref": "NOPE"}), uml("x"))["status"] == "error"
     models = _single_rule_models({"regex": "x"}, push="ghost")
@@ -255,6 +260,18 @@ def _single_rule_models(parts: dict[str, str], push: str | None = None) -> Resol
         contexts={"main": [entry]},
     )
     return {"only": model}
+
+
+def test_line_text_keeps_java_line_separators_for_the_regex() -> None:
+    # Line.text mirrors ReadLineReader (only BOM, U+2013 and breaks change); trin keeps
+    # U+0085/U+2028/U+2029, which Java's `.` refuses but its implicit `$` tolerates once.
+    models = _single_rule_models({"regex": "title (.*)"})
+    assert accepts(models, uml("title a\u2028"))["accepted"] is True
+    assert accepts(models, uml("title a\x85"))["accepted"] is True
+    rejected = accepts(models, uml("title a\u2028b"))
+    assert (rejected["accepted"], failure_of(rejected)) == (False, (2, "title a\u2028b"))
+    assert accepts(models, uml("title a\u2029\u2029"))["accepted"] is False
+    assert accepts(models, uml("title \u2013"))["accepted"] is True  # U+2013 becomes "-"
 
 
 def test_join_k_1_is_the_single_line_case(models: ResolvedModels) -> None:

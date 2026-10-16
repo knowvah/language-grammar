@@ -194,3 +194,25 @@ def test_also_citations_resolve_at_pin() -> None:
         )
         assert shown.returncode == 0, f"{owner}: {cite} missing at {PIN_SHA[:7]}"
         assert len(shown.stdout.splitlines()) >= last, f"{owner}: {cite} beyond end of file"
+
+
+def test_empty_needs_end_loads_and_resolves(tmp_path: Path) -> None:
+    models = load_dir(model(tmp_path, entry(), "empty_needs_end: true\n"))
+    assert models["m"].empty_needs_end is True
+    assert resolve(models)["m"].empty_needs_end is True
+
+
+def test_empty_needs_end_defaults_to_false(tmp_path: Path) -> None:
+    models = load_dir(model(tmp_path, entry()))
+    assert models["m"].empty_needs_end is False
+    assert resolve(models)["m"].empty_needs_end is False
+
+
+def test_empty_needs_end_is_diagram_layer_only(tmp_path: Path) -> None:
+    text = "schema_version: 1\nid: s\nlayer: shared\nempty_needs_end: true\n"
+    (tmp_path / "s.yaml").write_text(text, encoding="utf-8")
+    assert "empty_needs_end" in errors(tmp_path)
+
+
+def test_empty_needs_end_must_be_boolean(tmp_path: Path) -> None:
+    assert "boolean" in errors(model(tmp_path, entry(), "empty_needs_end: maybe\n"))

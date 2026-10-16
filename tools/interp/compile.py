@@ -2,16 +2,14 @@
 
 Upstream compiles every command regex through ``Pattern2.compileInternal`` with
 ``Pattern.CASE_INSENSITIVE`` (``regex/Pattern2.java:114`` at 97a5992) and matches the
-whole trimmed line (``Matcher.matches()``; ``command/SingleLineCommand2.java:102``,
-``command/CommandMultilines2.java:98``). The same is done here: ``{regex}`` leaves are
-case-insensitive only when the model says so: ``{regex, ci: true}`` and ``{literal, ci}``
-leaves are wrapped in ``(?i:...)`` / ``(?-i:...)`` according to ``ci`` (absent = case
-sensitive). The translator sets ``ci: true`` on Pattern2-compiled regexes.
-Patterns such as ``\\p{L}`` need the ``regex`` module, never ``re``.
-
-Known gap: Python's default Unicode ``\\w``/``\\s``/``\\b`` and case folding are broader
-than Java's ASCII defaults. The ``regex.ASCII`` flag would fix that but also disables
-``\\p{L}`` on non-ASCII text, which upstream's ``%pLN`` relies on, so it is not used.
+trimmed line with ``find()`` of ``^...$`` (``regex/RegexComposed.java:112-118``;
+``command/SingleLineCommand2.java:102``, ``command/CommandMultilines2.java:98``). The same
+is done here, with Java's semantics: model regexes are Java regexes, so every leaf goes
+through ``tools.model.java_regex.to_python`` (ASCII ``\\d \\w \\s \\b`` and POSIX classes,
+line-bounded ``.``, ASCII-only case folding; see the guide's "Regex semantics" section).
+``{regex, ci: true}`` and ``{literal, ci}`` leaves fold ASCII case; absent ``ci`` means
+case sensitive. The finished pattern gets Java's implicit ``$``: one final line
+terminator may follow the match (``line_pattern``).
 """
 
 from __future__ import annotations
@@ -23,6 +21,7 @@ from typing import Any
 import regex
 
 from tools.model import Part
+from tools.model.java_regex import line_pattern, literal_to_python, to_python
 
 FLAGS = 0
 LIST_JOINERS = {"seq": "", "alt": "|"}
@@ -42,14 +41,10 @@ def part_to_regex(part: Part) -> str:
         if key in part:
             return "(?:" + part_to_regex(part[key]) + ")" + quantifier
     if "regex" in part:
-        return _case_mode(part) + str(part["regex"]) + ")"
+        return "(?:" + to_python(str(part["regex"]), ci=bool(part.get("ci"))) + ")"
     if "literal" in part:
-        return _case_mode(part) + str(regex.escape(part["literal"])) + ")"
+        return "(?:" + literal_to_python(str(part["literal"]), ci=bool(part.get("ci"))) + ")"
     raise PartError(f"unresolved or unknown Part: {sorted(part)}")
-
-
-def _case_mode(part: Part) -> str:
-    return "(?i:" if part.get("ci") else "(?-i:"
 
 
 def part_key(part: Part) -> str:
@@ -64,7 +59,7 @@ def _compile_source(source: str) -> Any:
 
 @cache
 def _compile_key(key: str) -> Any:
-    return _compile_source(part_to_regex(json.loads(key)))
+    return _compile_source(line_pattern(part_to_regex(json.loads(key))))
 
 
 def compile_part(part: Part) -> Any:

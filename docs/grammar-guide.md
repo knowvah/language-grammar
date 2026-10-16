@@ -43,6 +43,7 @@ contexts:
 | `id` | top | Unique model id; must equal the file stem. | none (a syntax is identified by its file) |
 | `layer` | top | `document`, `preproc`, `diagram` or `shared` (see Layers). | none (added) |
 | `diagram` | top | Upstream `DiagramType` name. Required when `layer: diagram`, forbidden otherwise. | none (added) |
+| `empty_needs_end` | top (`diagram`) | Boolean, default false. With an `empty` context: a block that has a start line but no end line (a preprocessor-truncated block) is refused instead of run through `empty` (see "Diagram dispatch"). | none (added) |
 | `include` | top | List of model ids whose variables and contexts become visible. | `extends` (inherit contexts) |
 | `variables` | top | Map `UPPER_SNAKE` name to a Part. | `variables` (there: name to regex string) |
 | `contexts` | top | Map `snake_case` name to an ordered list of entries. Order is the upstream `initCommandsList` order and is significant. | `contexts` |
@@ -78,6 +79,15 @@ Every consumer (interpreter, emitters) must implement these exactly as written h
 | `multiline` + `join` | (lines joined) | Lines `1..k` (k ≤ `max_lines`+1) joined with U+E100 (`utils/BlocLines.java:296`, `jaws/Jaws.java:47`) fully match `parts`; the smallest such k wins (`CommandDecoratorMultine.java:77-93`, cap at `PSystemCommandFactory.java:281`). k = 1 is the single-line case. |
 | `multiline-bracket` | `parts` matches (it ends in `{`). | Bracket depth returns to 0: depth starts at 1, a trimmed line ending in `{` adds one, ending in `}` removes one (`CommandMultilinesBracket.java:64-96`). |
 | `opaque` | `parts` matches. | Rest of the block (non-command factory). |
+
+Unit gluing (`{{ ... }}` lines are one unit, `PSystemCommandFactory.java:288-307`) belongs
+to command factories only. The factories that are not `PSystemCommandFactory` subclasses
+(`PSystemAbstractFactory` readers such as JSON, YAML, HCL, files and git, the single-line,
+basic and welcome factories) read plain lines (`jsondiagram/StyleExtractor.java:63-103`),
+so their `multiline`, `multiline-bracket` and `join` scans treat a `{{` line as an ordinary
+line. The interpreter decides by the model's `factory`
+(`tools/interp/factories.py:NON_COMMAND_FACTORIES`, checked against the upstream superclass
+chains); no model key is involved.
 
 Emitters that cannot express a completion rule exactly (Lark, W3C, TextMate) approximate
 it and document the approximation in their module docstring: `join` as a single line;
@@ -160,6 +170,7 @@ Upstream compiles every IRegex command through `Pattern2` with `CASE_INSENSITIVE
 (`regex/Pattern2.java:114`), so generated regex Parts of such commands carry `ci: true`.
 Plain `java.util.regex.Pattern` patterns (some non-command factories) are
 case-sensitive and carry no `ci`. Hand-written models state `ci` explicitly where needed.
+`ci` folds ASCII letters only (see "Regex semantics (java.util.regex)").
 
 `push`, `pop` and `set` are mutually exclusive. `push`/`set` targets must name a context
 visible from the model.
@@ -181,8 +192,9 @@ Regex rules (checked by the loader):
 
 * Regexes are **expanded**: the upstream `%`-macros `%pLN`, `%s`, `%q`, `%g`
   (`regex/Pattern2.java:54-59` at 97a5992) must not appear.
-* Each regex compiles with the Python `regex` module (a superset of `re` in its default
-  mode). `re` itself is not used because expanded `%pLN` contains `\p{L}\p{N}`.
+* A regex means what `java.util.regex` makes of it (see "Regex semantics" below).
+  Each regex also compiles with the Python `regex` module (a superset of `re` in its default
+  mode) once translated. `re` itself is not used because expanded `%pLN` contains `\p{L}\p{N}`.
   Oniguruma and PCRE compilation is checked by the emitter tasks.
 * A `\uXXXX` escape inside a regex is a load error: PCRE2 rejects `\u`. Write the
   character itself (a YAML double-quoted `"\uE100"` is parsed to the literal character
@@ -230,7 +242,12 @@ Mirrors `PSystemBuilder.java:133-200` (factory order) and `:257-287` (try loop) 
 * Empty bodies: command factories reject a body with no non-blank line at the start
   line. A diagram model that accepts an empty body declares an `empty` context; the
   body's lines followed by the `@end` line run through it (`embedded-welcome`,
-  `embedded-json`, …).
+  `embedded-json`, …). `empty_needs_end: true` on that model refuses a block that has a
+  start line but no end line: its source is one line long, and `PSystemWelcomeFactory`
+  needs exactly two (`eggs/PSystemWelcomeFactory.java:52`), while
+  `PSystemBasicFactory`-style factories accept the truncated block
+  (`command/PSystemBasicFactory.java:101`), so the refusal is opt-in per model
+  (`embedded-welcome` sets it).
 * `Verdict.diagram` is the accepting model's `diagram` (compare with the oracle's
   `diagram_type`, which is `null` for non-`TitledDiagram` results); `Verdict.model` is
   its id.
@@ -381,6 +398,58 @@ mismatch, duplicate id, unknown include/ref/push target, cycle).
   read-only.
 * `ModelError` carries `file`, `pointer`, `message`; `load_dir` raises `ModelLoadError`
   with `.errors` listing all of them.
+
+## Regex semantics (java.util.regex)
+
+A model regex has **Java semantics**, not Python's. Upstream compiles every `Pattern2` with
+`Pattern.CASE_INSENSITIVE` only (`regex/Pattern2.java:114` at 97a5992), and no source under
+`src/main/java` sets `UNICODE_CASE` or `UNICODE_CHARACTER_CLASS` (`git grep` at 97a5992 finds
+neither). On Java 21 that gives (each line probed with `java` 21.0.1 and checked against the
+[`java.util.regex.Pattern` documentation](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/regex/Pattern.html):
+"POSIX character classes (US-ASCII only)", `\d`/`\w`/`\s` "if UNICODE_CHARACTER_CLASS is not set",
+`CASE_INSENSITIVE` "assumes that only characters in the US-ASCII charset are being matched" unless
+`UNICODE_CASE` is set, `.` "any character except a line terminator unless the DOTALL flag is
+specified"):
+
+| Construct | Java 21 meaning | Python `regex` default |
+|---|---|---|
+| `.` | any code point except `\n \r U+0085 U+2028 U+2029` | anything except `\n` |
+| `\d` `\w` `\s` and negations | ASCII: `[0-9]`, `[a-zA-Z_0-9]`, `[ \t\n\x0B\f\r]` | Unicode |
+| `\b` `\B` | ASCII word boundary, except that a non-spacing mark after a letter or digit continues the word | Unicode |
+| `\p{Alpha}`, `\p{Digit}`, `\p{Punct}`, `\p{Space}` ... (POSIX) | ASCII | Unicode properties |
+| `\p{L}`, `\p{N}`, `\p{Nd}` ... | Unicode | Unicode |
+| `ci` | folds ASCII letters only: `k` does not match U+212A, `é` does not match `É`; `\p{Lu}` `\p{Ll}` `\p{Lt}` become "any cased letter" | Unicode simple case folding |
+| `$`, `\Z` | also match before one final line terminator | before a final `\n` |
+
+Model regexes are therefore not valid Python `regex` input as written. **Consumers must
+translate them with `tools.model.java_regex`** before handing them to the `regex` module:
+
+```python
+from tools.model.java_regex import line_pattern, literal_to_python, to_python
+
+to_python(r"title\s+(.+)", ci=True)  # -> Python `regex` source, Java meaning
+literal_to_python("class", ci=True)  # -> "[cC][lL][aA][sS][sS]"
+line_pattern(body)  # body + one optional final line terminator
+```
+
+`to_python` is pure and rewrites `.`, the `\d \w \s \b \p{POSIX}` families (inside and
+outside classes), ASCII case folding (letters become `[aA]` classes, ranges gain their other-case
+twin, so no `(?i)` flag is used) and `$`/`\Z`. Constructs that are not Java but that models use
+(`(?(DEFINE)`, `(?&name)`, `(?P<n>`, `(?P=n)`, conditionals, possessive quantifiers) pass through
+unchanged; unsupported Java (`[a[b]]`, `&&`, `\h \v \R`, inline flags other than `i`) raises
+`JavaRegexError`. `line_pattern` supplies the `$` of upstream's `^...$` wrapper, which the
+translator strips from commands: use it for whole-line matching (`fullmatch`).
+
+Known residual differences: a back reference under `ci` folds Unicode (Python) where Java folds
+ASCII; lookbehind next to a supplementary character steps in UTF-16 units in Java; a
+`Pattern.matches()` use (as opposed to `^...$` with `find()`) does not accept the trailing
+terminator that `line_pattern` allows. Fidelity is tested against real Java:
+`tests/fixtures/java_regex/vectors.json` holds Java's verdicts for 1,000+ generated patterns on
+200+ strings, and a corpus-marked test regenerates them with `java` (`Vectors.java`) and compares.
+
+Consumers: the interpreter (`tools/interp/compile.py`) translates every Part. Emitters that
+render for the `regex` module (Lark) apply the same translation; TextMate, W3C and Sublime emit
+for other engines and must reproduce the same table in their own dialect.
 
 ## Naming conventions
 

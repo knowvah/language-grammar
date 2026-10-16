@@ -1,17 +1,15 @@
 # Classifications for the `single-line` family (T34). Upstream pin 97a5992; `cite` paths are
 # relative to the upstream repository root.
 #
-# Slices (interpreter): vega 0 blocks (the two crash FAs are fixed; both sides now reject
-# them, so the block family falls back to the @start keyword, which tools/report/families.py
-# KEYWORD_FAMILY does not map: they are counted in `unclassified`; queued), pdiff 48 blocks
-# FR 0 / FA 1, plantuml-ts 4 blocks FR 0 / FA 1 (the same block). Lark (`--lark all` on vega
-# and pdiff, `--lark sample --sample 100` on plantuml-ts): 0 timeouts, one disagreement per
-# corpus, the pevoma block below (Lark rejects it like the jar).
+# Slices (interpreter): FR 0 / FA 0 on vega, pdiff and plantuml-ts. The two crash blocks both
+# sides reject count here via KEYWORD_FAMILY (consolidation pass). The truncated-@startuml
+# block pevoma-08-vido726 is now rejected like the jar (`empty_needs_end` on
+# embedded-welcome, consolidation pass), so its former FA case is removed.
 #
 # Models kept as they are (exact, or nothing better is expressible):
 # * embedded-welcome (PSystemWelcomeFactory): accepts only an empty @startuml block, the
 #   two-line source of eggs/PSystemWelcomeFactory.java:52; jar-verified pos/welcome and
-#   neg/welcome-blank. Its only discrepancy is pevoma (an interpreter issue, below).
+#   neg/welcome-blank. With `empty_needs_end` it is exact.
 # * embedded-egg (PSystemEggFactory): accepts nothing; see the exclusion.
 # * PSystemPathFactory has no model: PSystemBuilder registers it only under the INSECURE
 #   security profile (PSystemBuilder.java:178-179), the default is LEGACY
@@ -33,20 +31,6 @@
 #   Lark neg acceptances come from other uml bodies (DESCRIPTION, SEQUENCE, ACTIVITY) and
 #   are unchanged by this family.
 cases:
-  pdiff:dbhum/p_ev/pevoma-08-vido726.puml#0:
-    class: bug
-    note: >-
-      FA. The jar's preprocessor leaves only `@startuml` (no end line; BlockUml.getData), so
-      every factory fails ("Empty description"; PSystemWelcomeFactory needs exactly two
-      lines). The interpreter runs embedded-welcome's `empty` context over the body plus the
-      end line; with no end line that is zero lines, which no model can refuse
-      (tools/interp/engine.py `_attempt`). Engine change queued: an empty body without an end
-      line must not reach `empty`. Lark rejects the block, as the jar does.
-    cite: src/main/java/net/sourceforge/plantuml/eggs/PSystemWelcomeFactory.java:52
-  plantuml-ts:class/pevoma-08-vido726.puml#0:
-    class: bug
-    note: copy of pdiff dbhum/p_ev/pevoma-08-vido726 (same truncated preprocessed source)
-    cite: src/main/java/net/sourceforge/plantuml/eggs/PSystemWelcomeFactory.java:52
   pdiff:dbhum/f_ol/folutu-01-xuzo995.puml#0:
     class: semantic
     note: >-

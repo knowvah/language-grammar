@@ -49,6 +49,7 @@ class Model:
     contexts: dict[str, list[Entry]] = field(default_factory=dict)
     factory: str | None = None
     start_map: dict[str, list[str]] = field(default_factory=dict)
+    empty_needs_end: bool = False
     overrides: dict[str, Entry] = field(default_factory=dict)
     insert_before: dict[str, list[Entry]] = field(default_factory=dict)
     insert_after: dict[str, list[Entry]] = field(default_factory=dict)
@@ -62,7 +63,8 @@ class ResolvedModel:
     the models it includes (transitively); own definitions win. No resolved Part or entry
     contains ``ref`` or ``include``. Shared sub-structures are read-only by convention.
     ``includes`` lists the transitive model-level includes in resolver scope order
-    (depth-first, deduplicated); ``factory`` and ``start_map`` are copied unchanged.
+    (depth-first, deduplicated); ``factory``, ``start_map`` and ``empty_needs_end`` are
+    copied unchanged.
     """
 
     id: str
@@ -74,6 +76,7 @@ class ResolvedModel:
     factory: str | None = None
     start_map: dict[str, list[str]] = field(default_factory=dict)
     includes: tuple[str, ...] = ()
+    empty_needs_end: bool = False
 
 
 ResolvedModels = dict[str, ResolvedModel]

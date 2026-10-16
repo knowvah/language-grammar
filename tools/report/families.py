@@ -168,6 +168,11 @@ KEYWORD_FAMILY: dict[str, str] = {
     "nwdiag": "nwdiag-packet",
     "packetdiag": "nwdiag-packet",
     "timing": "timing",
+    "crash": "single-line",
+    "dot": "single-line",
+    "ditaa": "single-line",
+    "math": "single-line",
+    "latex": "single-line",
 }
 START_KEYWORD = re.compile(r"^\s*@start(\w+)", re.IGNORECASE)
 

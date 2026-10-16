@@ -4,12 +4,15 @@
 # (comments are already removed by the preprocessor). It is a PSystemFactory, not a
 # command factory, so an empty body is its only accepted input: `main` accepts nothing,
 # `empty` (see tools/interp/engine.py) rejects any blank line and accepts the end line.
+# `empty_needs_end`: a preprocessor-truncated block (`@startuml` and no end line) is one
+# line long, which the factory refuses (:52); the interpreter refuses it too.
 
 schema_version: 1
 id: embedded-welcome
 layer: diagram
 diagram: SEQUENCE
 factory: PSystemWelcomeFactory
+empty_needs_end: true
 contexts:
   main: []
   empty:

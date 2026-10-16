@@ -1,7 +1,0 @@
-' salt: CommandAnything
-' gap: generated CommandTitle `(.*)` matches U+2028; Java `.` does not (queued: translate `.`)
-@startsalt
-title a b
-{
-}
-@endsalt

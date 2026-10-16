@@ -63,6 +63,11 @@ Upstream semantics mirrored (all at 97a5992):
   factories differ (``PSystemWelcomeFactory`` accepts *only* an empty ``@startuml``,
   ``JsonDiagramFactory`` accepts one). A model opts out of the rejection by declaring an
   ``empty`` context: the body lines followed by the ``@end`` line are run through it.
+  ``empty_needs_end: true`` (model key) additionally refuses a block that has a start
+  line but no end line: the source then has one line, and ``PSystemWelcomeFactory``
+  needs exactly two (``eggs/PSystemWelcomeFactory.java:52``). Without the key a
+  truncated empty block is accepted (``PSystemBasicFactory.createSystem`` returns the
+  system when the iterator runs out, ``command/PSystemBasicFactory.java:101``).
 * Raw mode (``raw=True``, the L1 hook): input is a raw block, not preprocessed text. If a
   ``layer: preproc`` model exists, every body line (after comment removal) is first
   offered to it, with its own context stack starting at ``main``; kinds, ``multiline``,
@@ -81,8 +86,8 @@ colors, duplicate entities, ``CommandExecutionResult.error``), ``finalVerificati
 (``PSystemCommandFactory.java:157-170``), multi-pass diagrams (``getRequiredPass``),
 ``syntaxWithFinalBracket`` handling, abstract
 ``isLineConsistent`` of bracket commands, error *scores* beyond line progress, and
-``Throwable`` crashes inside a factory (``:275-281``). See also ``tools.interp.compile``
-for regex-dialect gaps.
+``Throwable`` crashes inside a factory (``:275-281``). Regex semantics are Java's
+(``tools.model.java_regex``); see ``tools.interp.compile``.
 """
 
 from __future__ import annotations
@@ -100,12 +105,13 @@ from tools.interp.rules import ACTION_POP, ACTION_PUSH, ACTION_SET, Rule, RuleBo
 from tools.interp.scan import BlockTimeout, Deadline
 from tools.interp.source import Block, Line, split_block
 from tools.model import ResolvedModel, ResolvedModels
+from tools.model.java_regex import JavaRegexError
 
 MAIN_CONTEXT = "main"
 EMPTY_CONTEXT = "empty"
 PREPROC_LAYER = "preproc"
 DEFAULT_TIMEOUT_S = 10.0
-MODEL_ERRORS = (regex.error, KeyError, PartError)
+MODEL_ERRORS = (regex.error, KeyError, PartError, JavaRegexError)
 _Step = tuple[Rule, int, int]
 
 
@@ -124,6 +130,11 @@ def _verdict(
 
 def _is_empty(body: list[Line]) -> bool:
     return not any(line.trimmed for line in body)
+
+
+def _truncated(model: ResolvedModel, block: Block) -> bool:
+    """A ``empty_needs_end`` model refuses a block that has a start line but no end line."""
+    return model.empty_needs_end and block.start is not None and block.end is None
 
 
 def _preproc_model(models: ResolvedModels) -> ResolvedModel | None:
@@ -222,7 +233,7 @@ class Interpreter:
         """``(progress, line)`` of the first rejected line, or ``None`` if accepted."""
         lines, context = block.body, MAIN_CONTEXT
         if _is_empty(block.body):
-            if EMPTY_CONTEXT not in model.contexts:
+            if EMPTY_CONTEXT not in model.contexts or _truncated(model, block):
                 return -1, block.start or Line(1, "", "")
             lines = block.body + ([block.end] if block.end else [])
             context = EMPTY_CONTEXT

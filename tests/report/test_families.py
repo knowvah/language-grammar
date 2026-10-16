@@ -68,6 +68,12 @@ def test_rejected_blocks_fall_back_to_factory_then_keyword_then_unclassified():
     assert family_of(None, None, "no start line") == "unclassified"
 
 
+@pytest.mark.parametrize("keyword", ["crash", "dot", "ditaa", "math", "latex"])
+def test_rejected_single_line_keywords_are_classified_by_start_keyword(keyword):
+    assert family_of(None, None, f"@start{keyword}\nx\n@end{keyword}") == "single-line"
+    assert family_of(None, None, f"@start{keyword.upper()}") == "single-line"
+
+
 def test_candidates_before_the_interpreter_runs():
     assert families.candidate_families("SEQUENCE") == {"sequence"}
     assert families.candidate_families("ACTIVITY") == {"activity3", "activity-legacy"}

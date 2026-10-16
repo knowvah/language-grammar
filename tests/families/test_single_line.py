@@ -137,6 +137,21 @@ def test_basic_bodies_count_lines_like_the_basic_factory(models: ResolvedModels,
     assert (body["kind"], body["gives"]) == ("single", "basic_line")
 
 
+def test_truncated_welcome_block_is_rejected(models: ResolvedModels) -> None:
+    # A preprocessor-truncated `@startuml` has one source line; PSystemWelcomeFactory.java:52
+    # needs exactly two, and every command factory reports an empty description.
+    verdict = accepts(models, "@startuml", raw=True)
+    assert (verdict["accepted"], verdict["first_failure"]["line"]) == (False, 1)  # type: ignore[index]
+    assert accepts(models, "@startuml\n@enduml", raw=True)["model"] == "embedded-welcome"
+
+
+@pytest.mark.parametrize("name", ["ditaa", "math", "latex"])
+def test_truncated_basic_block_stays_accepted(models: ResolvedModels, name: str) -> None:
+    # PSystemBasicFactory.createSystem returns the system when the iterator runs out (:101).
+    verdict = accepts(models, f"@start{name}", raw=True)
+    assert (verdict["accepted"], verdict["model"]) == (True, PREFIX + name)
+
+
 def hand_written_entries(model: Model) -> list[dict[str, Any]]:
     """Override patches, inserted entries and context entries of one model file."""
     found: list[dict[str, Any]] = list(model.overrides.values())

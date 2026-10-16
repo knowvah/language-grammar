@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import regex
 
-from tools.interp.scan import JOINER, Deadline, scan_join
+from tools.interp.scan import JOINER, Deadline, Join, scan_join
 from tools.interp.source import Line
 
 UNCAPPED = 100_000
@@ -33,14 +33,14 @@ def test_uncapped_join_stops_once_no_extension_can_match() -> None:
     pattern = regex.compile("<style>(?:" + JOINER + "[a-z]+)*" + JOINER + "</style>")
     body = _body(["class A"] + ["line"] * 5000)
     deadline = CountingDeadline()
-    assert scan_join(pattern, UNCAPPED, body, 0, deadline) is None
+    assert scan_join(Join(pattern, UNCAPPED), body, 0, deadline) is None
     assert deadline.calls == 1
 
 
 def test_uncapped_join_still_finds_the_smallest_matching_k() -> None:
     pattern = regex.compile("<style>(?:" + JOINER + "[a-z]+)*" + JOINER + "</style>")
     body = _body(["<style>", "a", "b", "</style>", "after"])
-    assert scan_join(pattern, UNCAPPED, body, 0, Deadline(10.0)) == 4
+    assert scan_join(Join(pattern, UNCAPPED), body, 0, Deadline(10.0)) == 4
 
 
 def test_prefix_raises_block_timeout_when_budget_is_spent() -> None:
