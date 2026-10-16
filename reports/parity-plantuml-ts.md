@@ -4,12 +4,12 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 
 | family | blocks | fr | fa | disagree | timeout | diagram_mismatch | raw_fr | FR rate |
 |---|---|---|---|---|---|---|---|---|
-| activity-legacy | 119 | 0 | 0 | 0 | 1 | 1 | 0 | 0.00% |
+| activity-legacy | 119 | 0 | 0 | 0 | 2 | 1 | 0 | 0.00% |
 | activity3 | 777 | 0 | 2 | 3 | 8 | 1 | 33 | 0.00% |
 | board-files-git | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | class | 1166 | 0 | 14 | 1 | 3 | 25 | 30 | 0.00% |
 | common (overlay) | 4401 | 8 | 49 | 0 | 0 | 488 | 184 | 0.19% |
-| description | 662 | 0 | 6 | 0 | 8 | 0 | 52 | 0.00% |
+| description | 662 | 0 | 6 | 0 | 9 | 0 | 52 | 0.00% |
 | gantt | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | json | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | meta-diagrams | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
@@ -17,16 +17,17 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 | misc-charts | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | nwdiag-packet | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | salt | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
-| sequence | 1223 | 0 | 3 | 0 | 3 | 0 | 52 | 0.00% |
+| sequence | 1223 | 0 | 3 | 0 | 4 | 0 | 52 | 0.00% |
 | single-line | 3 | 0 | 0 | 0 | 0 | 2 | 0 | 0.00% |
 | state | 300 | 0 | 4 | 0 | 2 | 0 | 3 | 0.00% |
 | style (overlay) | 428 | 3 | 0 | 0 | 0 | 85 | 11 | 0.70% |
 | timing | 65 | 0 | 3 | 0 | 0 | 0 | 0 | 0.00% |
-| unclassified | 86 | 0 | 0 | 14 | 2 | 0 | 0 | 0.00% |
-| **total** | 4401 | 0 | 32 | 18 | 27 | 29 | 170 | 0.00% |
+| unclassified | 86 | 0 | 0 | 12 | 3 | 0 | 0 | 0.00% |
+| **total** | 4401 | 0 | 32 | 16 | 31 | 29 | 170 | 0.00% |
 
 ## Cases
 
+- activity-legacy: `class/lobosa-57-gozi031.puml#0` timeout (unclassified)
 - activity-legacy: `class/pudixe-16-deki169.puml#0` timeout (bug) - Lark timeout only: parses and agrees in 27 s CPU (baseline grammar 19 s); no interpreter/Lark disagreement
 - activity3: `activity/boxoto-53-sifo232.puml#0` timeout (unclassified)
 - activity3: `activity/gacaja-15-keko600.puml#0` timeout (unclassified)
@@ -59,6 +60,7 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - class: `object/losote-76-beki147.puml#0` fa (semantic) - object user defined twice: "Object already exists"
 - class: `sequence/zakuta-81-pese010.puml#0` timeout (unclassified)
 - class: `sequence/zosaxa-86-mora157.puml#0` timeout (unclassified)
+- description: `class/cukafa-49-fona812.puml#0` timeout (bug) - Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar
 - description: `class/foraba-98-sagi735.puml#0` timeout (bug) - Lark timeout only; times out with the pre-T19 grammar too
 - description: `class/gikaju-64-bari602.puml#0` fa (semantic) - C4 Rel() links someContainer before `rectangle ... as someContainer` declares it: "This element (someContainer) is already defined" (the link made it STILL_UNKNOWN)
 - description: `class/josimu-04-silu988.puml#0` timeout (bug) - Lark timeout only; times out with the pre-T19 grammar too
@@ -77,6 +79,7 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - sequence: `sequence/moragi-03-luto111.puml#0` fa (semantic) - preprocessor error: %dirpath() has arity 0, called with one argument; not a sequence command
 - sequence: `sequence/riguga-63-mujo058.puml#0` fa (semantic) - create then a message to another participant: SequenceDiagram.addMessage pendingCreate check (state, gap/create-then-other-message)
 - sequence: `sequence/sosudi-70-jape391.puml#0` fa (semantic) - activate/deactivate just after a delay: SequenceDiagram.activate lastDelay check (state, gap/activate-after-delay)
+- sequence: `sequence/tatesu-03-zozo948.puml#0` timeout (unclassified)
 - sequence: `sequence/tumuke-16-xomo243.puml#0` timeout (unclassified)
 - sequence: `sequence/vitusu-66-boxa381.puml#0` timeout (unclassified)
 - state: `class/fugedo-34-fice721.puml#0` fa (semantic) - link endpoint ChildMode1.A resolves under the current group, whose parent state does not exist (cross-line, gap/link-unknown-parent)
@@ -100,7 +103,6 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - unclassified: `class/kepife-84-jigi755.puml#0` disagree (unclassified)
 - unclassified: `class/kipive-74-lele070.puml#0` timeout (unclassified)
 - unclassified: `class/rubife-18-nege510.puml#0` disagree (unclassified)
-- unclassified: `class/vevatu-41-xixo630.puml#0` disagree (unclassified)
 - unclassified: `class/zalulo-78-voma912.puml#0` disagree (unclassified)
 - unclassified: `class/zinano-86-zeke427.puml#0` disagree (unclassified)
-- unclassified: `sequence/sirimo-08-ceju218.puml#0` disagree (unclassified)
+- unclassified: `sequence/pajude-35-jisu021.puml#0` timeout (unclassified)

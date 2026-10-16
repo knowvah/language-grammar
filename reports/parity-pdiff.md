@@ -4,12 +4,12 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 
 | family | blocks | fr | fa | disagree | timeout | diagram_mismatch | raw_fr | FR rate |
 |---|---|---|---|---|---|---|---|---|
-| activity-legacy | 119 | 0 | 0 | 0 | 1 | 1 | 0 | 0.00% |
+| activity-legacy | 119 | 0 | 0 | 0 | 3 | 1 | 0 | 0.00% |
 | activity3 | 797 | 0 | 2 | 2 | 11 | 5 | 35 | 0.00% |
 | board-files-git | 16 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | class | 1273 | 0 | 15 | 1 | 4 | 40 | 38 | 0.00% |
 | common (overlay) | 5834 | 272 | 67 | 0 | 0 | 576 | 472 | 4.82% |
-| description | 732 | 0 | 7 | 0 | 11 | 1 | 59 | 0.00% |
+| description | 732 | 0 | 7 | 0 | 12 | 1 | 59 | 0.00% |
 | gantt | 274 | 0 | 4 | 2 | 0 | 0 | 2 | 0.00% |
 | json | 93 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | meta-diagrams | 113 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
@@ -17,16 +17,18 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 | misc-charts | 55 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
 | nwdiag-packet | 68 | 0 | 1 | 0 | 0 | 0 | 0 | 0.00% |
 | salt | 51 | 0 | 0 | 0 | 0 | 0 | 0 | 0.00% |
-| sequence | 1258 | 0 | 3 | 0 | 4 | 0 | 53 | 0.00% |
+| sequence | 1258 | 0 | 3 | 0 | 6 | 0 | 53 | 0.00% |
 | single-line | 47 | 0 | 0 | 0 | 0 | 2 | 0 | 0.00% |
 | state | 318 | 0 | 4 | 0 | 2 | 0 | 4 | 0.00% |
 | style (overlay) | 614 | 43 | 1 | 0 | 0 | 91 | 51 | 7.03% |
 | timing | 156 | 0 | 4 | 0 | 0 | 0 | 0 | 0.00% |
-| unclassified | 116 | 0 | 0 | 18 | 2 | 0 | 0 | 0.00% |
-| **total** | 5834 | 0 | 47 | 23 | 35 | 49 | 198 | 0.00% |
+| unclassified | 116 | 0 | 0 | 15 | 2 | 0 | 0 | 0.00% |
+| **total** | 5834 | 0 | 47 | 20 | 40 | 49 | 198 | 0.00% |
 
 ## Cases
 
+- activity-legacy: `dbhum/c_om/comucu-92-moxi625.puml#0` timeout (unclassified)
+- activity-legacy: `dbhum/l_ob/lobosa-57-gozi031.puml#0` timeout (unclassified)
 - activity-legacy: `dbhum/p_ud/pudixe-16-deki169.puml#0` timeout (unclassified)
 - activity3: `dbhum/b_es/besaga-58-poli497.puml#0` disagree (unclassified)
 - activity3: `dbhum/b_of/bofaxe-86-mizu331.puml#0` timeout (unclassified)
@@ -66,6 +68,7 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - description: `dbhum/b_er/berufi-69-dara369.puml#0` timeout (unclassified)
 - description: `dbhum/b_ob/bobije-35-nigi914.puml#0` timeout (unclassified)
 - description: `dbhum/d_ag/dagugu-60-zuli109.puml#0` fa (semantic) - `folder A` inside the group A names the group itself: "This element (A) is already defined"
+- description: `dbhum/d_er/deroxu-29-gude369.puml#0` timeout (unclassified)
 - description: `dbhum/f_or/foraba-98-sagi735.puml#0` timeout (unclassified)
 - description: `dbhum/g_ep/gepuco-34-pira620.puml#0` timeout (unclassified)
 - description: `dbhum/g_ik/gikaju-64-bari602.puml#0` fa (semantic) - copy of plantuml-ts class/gikaju-64-bari602: "This element (someContainer) is already defined"
@@ -95,6 +98,7 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - mindmap-wbs: `dbhum/z_ec/zecavo-98-kini554.puml#0` fa (semantic) - `* B` after the root `* A` is a second root (cross-line, leading blanks; gap/wbs-second-root)
 - mindmap-wbs: `input/WBS-monoline-def-0.puml#3` fa (semantic) - four leading blanks make level 4 under the root (cross-line, leading blanks; gap/wbs-indent-jump)
 - nwdiag-packet: `dbhum/t_or/torazi-09-gago377.puml#0` fa (semantic) - element already in some group: addElement checks the names of every group (gap/nw-element-in-two-groups)
+- sequence: `dbhum/d_ug/dugeki-47-celo546.puml#0` timeout (unclassified)
 - sequence: `dbhum/m_or/moragi-03-luto111.puml#0` fa (semantic) - preprocessor error: %dirpath() has arity 0, called with one argument; not a sequence command
 - sequence: `dbhum/m_uf/mufiku-61-kama114.puml#0` timeout (unclassified)
 - sequence: `dbhum/r_ig/riguga-63-mujo058.puml#0` fa (semantic) - create then a message to another participant: SequenceDiagram.addMessage pendingCreate check (state, gap/create-then-other-message)
@@ -102,6 +106,7 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - sequence: `dbhum/s_os/sosudi-70-jape391.puml#0` fa (semantic) - activate/deactivate just after a delay: SequenceDiagram.activate lastDelay check (state, gap/activate-after-delay)
 - sequence: `dbhum/t_at/tatesu-03-zozo948.puml#0` timeout (unclassified)
 - sequence: `dbhum/v_ij/vijito-33-mora824.puml#0` timeout (unclassified)
+- sequence: `dbhum/z_ur/zuravu-52-mike252.puml#0` timeout (unclassified)
 - state: `dbhum/c_ag/cagego-53-vemo516.puml#0` fa (semantic) - link endpoint c belongs to another concurrent region (cross-line, gap/state-reused-in-other-region)
 - state: `dbhum/f_ug/fugedo-34-fice721.puml#0` fa (semantic) - link endpoint ChildMode1.A resolves under the current group, whose parent state does not exist (cross-line, gap/link-unknown-parent)
 - state: `dbhum/s_om/somuke-94-buzi673.puml#0` timeout (unclassified)
@@ -122,11 +127,8 @@ Pin: `97a5992201a7b1bc5d4063a81da609fe7387fede`
 - unclassified: `dbhum/n_ak/nakavu-98-pela661.puml#0` disagree (unclassified)
 - unclassified: `dbhum/p_ej/pejima-95-nuxu520.puml#0` disagree (unclassified)
 - unclassified: `dbhum/r_ub/rubife-18-nege510.puml#0` disagree (unclassified)
-- unclassified: `dbhum/s_ir/sirimo-08-ceju218.puml#0` disagree (unclassified)
-- unclassified: `dbhum/t_um/tumepe-28-zuma441.puml#0` disagree (unclassified)
 - unclassified: `dbhum/v_ed/veducu-71-tika634.puml#0` disagree (unclassified)
 - unclassified: `dbhum/v_el/velodu-59-sada437.puml#0` disagree (unclassified)
-- unclassified: `dbhum/v_ev/vevatu-41-xixo630.puml#0` disagree (unclassified)
 - unclassified: `dbhum/v_ip/vipixe-71-rika369.puml#0` timeout (unclassified)
 - unclassified: `dbhum/x_or/xoreni-54-xoro817.puml#0` disagree (unclassified)
 - unclassified: `dbhum/z_al/zalulo-78-voma912.puml#0` disagree (unclassified)

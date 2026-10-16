@@ -1,0 +1,64 @@
+schema_version: 1
+id: guards_toy
+layer: diagram
+diagram: CLASS
+contexts:
+  main:
+    # a guard before a regex: any word but one starting with "foo"
+    - command: Word
+      provenance: {class: toy.Word}
+      kind: single
+      parts:
+        seq:
+          - {regex: "(?!foo)", ci: false}
+          - {regex: "[a-z]+", ci: false}
+    # a guard after an optional part: the next character must be "y"
+    - command: Pair
+      provenance: {class: toy.Pair}
+      kind: single
+      parts:
+        seq:
+          - {literal: "p ", ci: false}
+          - opt: {literal: "x", ci: false}
+          - {regex: "(?=y)", ci: false}
+          - {regex: "[a-z]+", ci: false}
+    # a guard ending one alternative: after "r" no "s" may follow
+    - command: Alt
+      provenance: {class: toy.Alt}
+      kind: single
+      parts:
+        seq:
+          - {literal: "a ", ci: false}
+          - alt:
+              - {literal: "q", ci: false}
+              - seq:
+                  - {literal: "r", ci: false}
+                  - {regex: "(?!s)", ci: false}
+          - {regex: "[a-z]*", ci: false}
+    # a lookbehind at the end of the line: the word may not end in "z"
+    - command: End
+      provenance: {class: toy.End}
+      kind: single
+      parts:
+        seq:
+          - {literal: "e ", ci: false}
+          - {regex: "[a-z]+", ci: false}
+          - {regex: "(?<!z)", ci: false}
+    # a lookahead at the end of the line holds there
+    - command: Tail
+      provenance: {class: toy.Tail}
+      kind: single
+      parts:
+        seq:
+          - {literal: "t", ci: false}
+          - {regex: "(?![a-z])", ci: false}
+    # a guard in front of a nullable regex that is followed by a literal
+    - command: Spaced
+      provenance: {class: toy.Spaced}
+      kind: single
+      parts:
+        seq:
+          - {literal: "s", ci: false}
+          - {regex: "(?! ;)", ci: false}
+          - {regex: "[ ]*", ci: false}
+          - {literal: ";", ci: false}

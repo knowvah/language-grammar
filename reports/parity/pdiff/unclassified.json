@@ -174,40 +174,6 @@
       "block": 0,
       "class": "unclassified",
       "first_failure": {
-        "line": 3,
-        "text": "foo"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "dbhum/s_ir/sirimo-08-ceju218.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "first_failure": {
-        "line": 2,
-        "text": "foo"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "dbhum/t_um/tumepe-28-zuma441.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "first_failure": {
         "line": 7,
         "text": "}"
       },
@@ -236,23 +202,6 @@
       "oracle": false,
       "oracle_type": null,
       "path": "dbhum/v_el/velodu-59-sada437.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "first_failure": {
-        "line": 43,
-        "text": "portin scene as Focus.scene"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "dbhum/v_ev/vevatu-41-xixo630.puml",
       "status": "reject"
     },
     {
@@ -347,7 +296,7 @@
   "totals": {
     "blocks": 116,
     "diagram_mismatch": 0,
-    "disagree": 18,
+    "disagree": 15,
     "fa": 0,
     "fr": 0,
     "oracle_accepted": 7,

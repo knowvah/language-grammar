@@ -100,6 +100,20 @@
     },
     {
       "block": 0,
+      "class": "bug",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "DESCRIPTION",
+      "kind": "timeout",
+      "lark": false,
+      "note": "Lark timeout only, near the budget under shared load; 6 other blocks time out only with the pre-T19 grammar",
+      "oracle": true,
+      "oracle_type": "DESCRIPTION",
+      "path": "class/cukafa-49-fona812.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
       "class": "unclassified",
       "first_failure": null,
       "interp": true,
@@ -936,6 +950,6 @@
     "fr": 0,
     "oracle_accepted": 656,
     "raw_fr": 52,
-    "timeout": 8
+    "timeout": 9
   }
 }

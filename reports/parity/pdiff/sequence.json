@@ -104,6 +104,20 @@
       "first_failure": null,
       "interp": true,
       "interp_diagram": "SEQUENCE",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "SEQUENCE",
+      "path": "dbhum/d_ug/dugeki-47-celo546.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "SEQUENCE",
       "kind": "raw_fr",
       "lark": null,
       "note": "",
@@ -839,6 +853,20 @@
       "oracle_type": "SEQUENCE",
       "path": "dbhum/z_uc/zucixi-23-seni671.puml",
       "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "SEQUENCE",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "SEQUENCE",
+      "path": "dbhum/z_ur/zuravu-52-mike252.puml",
+      "status": "ok"
     }
   ],
   "corpus": "pdiff",
@@ -852,6 +880,6 @@
     "fr": 0,
     "oracle_accepted": 1255,
     "raw_fr": 53,
-    "timeout": 4
+    "timeout": 6
   }
 }

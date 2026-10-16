@@ -216,5 +216,5 @@ def test_main_check_cites_fails_on_an_unresolved_cite(tmp_path, monkeypatch, cap
 
 def test_render_appends_the_measured_explanations_after_the_table():
     text = sg.render([], {"vega": {"disagree": 1}})
-    assert text.index("| vega | 1 | 0 | 0 | 0 |") < text.index("**Lark timeouts (62:")
+    assert text.index("| vega | 1 | 0 | 0 | 0 |") < text.index("**Lark timeouts (71:")
     assert text.rstrip().endswith("See `.agent-notes/T14.md`.")
