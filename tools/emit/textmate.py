@@ -50,6 +50,10 @@ list, so upstream's ordered, stateful command matching is only approximated.
 Contract keys ignored by this emitter: ``gives``/``needs`` (diagram flags, final-state
 checks) are ignored; ``trim: false`` is ignored (the emitted pattern is matched against
 the trimmed line); ``emit: false`` entries are dropped like ``reject`` (see ``skip.py``).
+
+Regex dialect: patterns keep the model's Java text; TextMate/Oniguruma is its own engine and is
+not routed through ``tools.model.java_regex`` (only the Lark emitter is; see
+``tools.emit.lark_regex``).
 """
 
 from __future__ import annotations

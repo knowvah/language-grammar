@@ -226,8 +226,9 @@ def _apply_flags(spec: str, ci: bool) -> bool:
 class _Translator:
     """One pass over the source; ``ci`` is the case mode of the group being read."""
 
-    def __init__(self, src: str, ci: bool) -> None:
+    def __init__(self, src: str, ci: bool, end_anchor: str) -> None:
         self.src, self.ci, self.i = src, ci, 0
+        self.end_anchor = end_anchor
         self.out: list[str] = []
         self.saved: list[bool] = []
 
@@ -256,7 +257,7 @@ class _Translator:
         elif char == ".":
             self.emit(DOT)
         elif char == "$":
-            self.emit(END_ANCHOR)
+            self.emit(self.end_anchor)
         elif self.ci and char.isascii() and char.isalpha():
             self.emit(f"[{char.lower()}{char.upper()}]")
         else:
@@ -299,7 +300,7 @@ class _Translator:
         elif char in "pP":
             self.property_escape()
         elif char in "Zz":
-            self.emit(END_ANCHOR if char == "Z" else ABSOLUTE_END, 2)
+            self.emit(self.end_anchor if char == "Z" else ABSOLUTE_END, 2)
         else:
             self.other_escape(char)
 
@@ -338,14 +339,14 @@ class _Translator:
         self.emit(f"[{letter.lower()}{letter.upper()}]" if folded else text, hexed[1])
 
 
-def to_python(pattern: str, *, ci: bool = False) -> str:
+def to_python(pattern: str, *, ci: bool = False, end_anchor: str = END_ANCHOR) -> str:
     """Python ``regex`` source with the semantics Java gives ``pattern``.
 
     ``ci`` is ``Pattern.CASE_INSENSITIVE`` (ASCII folding) for the whole pattern; inline
     ``(?i:...)`` / ``(?-i:...)`` groups switch it locally. Raises ``JavaRegexError`` for
     Java syntax outside the supported subset (see the module docstring).
     """
-    return _Translator(pattern, ci).run()
+    return _Translator(pattern, ci, end_anchor).run()
 
 
 def literal_to_python(text: str, *, ci: bool = False) -> str:

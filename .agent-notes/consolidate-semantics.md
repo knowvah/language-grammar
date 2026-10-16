@@ -38,3 +38,24 @@
 - **Context**: vega, plantuml-ts, pdiff, `--lark none`, same frozen models plus the embedded-welcome key.
 - **Finding**: zero FR before and after; the only verdict changes are the two pevoma-08-vido726 blocks (FA fixed by `empty_needs_end`). The corpora hold no block where Java's ASCII classes or ASCII case folding change a verdict; the semantic gap is closed by construction (vectors), not visible in the corpora.
 - **Confidence**: High
+
+## Observation: Lark's eval_escaping turns `\xHH` into the bare character, so never emit `\x5c`, `\x5d`, `\x2d` ...
+- **Context**: first Lark build with `to_python` output failed ("missing ) at position 280").
+- **Finding**: lark/load_grammar.py `eval_escaping` keeps a backslash only before characters NOT in `Uuxnftr`; `\xHH`/`\uHHHH`/`\UHHHHHHHH` are decoded by `literal_eval`, so `[\x5c]` reached `regex` as `[\]` and `\x2d` as a range dash. `cp_text` (tools/model/java_regex_sets.py) therefore backslash-escapes ASCII punctuation (`\-`, `\]`, `\\`) and keeps `\xHH` for controls, space and non-ASCII only.
+- **Impact**: any new generated class text must stay in that form; the vectors cover `<>"/$#:~^{}` and backslash.
+- **Confidence**: High
+
+## Observation: linebound must know `\UHHHHHHHH`
+- **Context**: `[\x00-\U0010ffff]` (the complement of an empty set) crossed line ends in 3 terminals.
+- **Finding**: `linebound.HEX_ESCAPE` lacked the 8-digit form, so a range ending in `\U0010ffff` was not split around `\n \r`. Added.
+- **Confidence**: High
+
+## Observation: `(?=[\r\n]|\Z)` is emptied by line_bounded
+- **Context**: choosing `end_anchor` for Lark.
+- **Finding**: line_bounded strips `\n`/`\r` from positive classes, so a class-based line end becomes a never-matching class. `LINE_END = (?=\r|\n|\Z)` (alternation, no class) survives.
+- **Confidence**: High
+
+## Observation: unknown `@start` words (PSystemUnsupported)
+- **Context**: 7 pdiff `@startjcckit` files.
+- **Finding**: Lark gets `block_other` (START_OTHER excludes every start_map key as a prefix, like findStartTypes; body any lines; shared END). A bare `@start` is not a start directive (needs one more char). Words that merely begin with a keyword (`@startumlx`) are still rejected by Lark: pre-existing, the keyword START terminals require a word boundary. W3C states the block and notes the overlap; TextMate has none.
+- **Confidence**: High

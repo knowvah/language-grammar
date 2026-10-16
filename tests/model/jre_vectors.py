@@ -36,7 +36,7 @@ LOOKBEHIND = regex.compile(r"\(\?<[=!]")
 # digits, blanks of every Java flavour, and the non-ASCII characters whose treatment
 # differs between Java (ASCII defaults) and Python `regex` (Unicode defaults).
 STRING_CHARS = [
-    *"abkKsSiIzZ09_ -!.[]\\",
+    *'abkKsSiIzZ09_ -!.[]\\<>"/$#:~^{}',
     "\t",
     "\x0b",
     "\x0c",
@@ -71,6 +71,7 @@ ESCAPES = [
 ]
 CLASS_ITEMS = [
     *("a", "k", "K", "z", "0", "_", "-", "\xe9", "K", "\\.", "\\[", "\\]", "\\x41"),
+    *("<", ">", '"', "/", "$", "#", ":", "~", "{", "}", "\\^", "\\\\"),
     *("a-f", "A-Z", "Z-a", "0-9", "a-z", "k-t", "A-z", "\xe0-\xef", "\\x30-\\x39"),
     *ESCAPES[:6],
     *("\\p{L}", "\\p{Lu}", "\\p{Alpha}", "\\P{Upper}", "\\p{Punct}", "\\p{Space}", "\\p{Mn}"),

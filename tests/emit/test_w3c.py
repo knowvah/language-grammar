@@ -247,7 +247,7 @@ def test_output_is_valid_w3c_with_every_name_defined(
 ) -> None:
     prods = check_w3c_syntax(lossy_result[0])
     assert prods["plantuml"] == "NL* block (NL+ block)* NL*"
-    assert prods["block"] == "block_uml | block_salt"
+    assert prods["block"] == "block_uml | block_salt | block_other"
     assert prods["block_uml"] == "START_UML NL class_body END_BLOCK"
     assert prods["NL"] == "#xD? #xA"
 

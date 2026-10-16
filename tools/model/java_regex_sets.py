@@ -82,10 +82,18 @@ def fold_ascii(ranges: Iterable[Range]) -> RangeList:
 
 
 def cp_text(cp: int) -> str:
-    """A code point as regex text: ASCII alphanumerics literally, the rest escaped."""
+    """A code point as regex text.
+
+    ASCII alphanumerics are literal and ASCII punctuation is backslash-escaped (never
+    ``\\xHH``: Lark's ``eval_escaping`` turns ``\\x5c``/``\\x5d``/``\\x2d`` into the bare
+    characters, which are regex syntax inside a class). Controls, space and everything
+    non-ASCII use ``\\xHH`` / ``\\uHHHH`` / ``\\UHHHHHHHH``.
+    """
     char = chr(cp)
     if char.isascii() and char.isalnum():
         return char
+    if char.isascii() and char.isprintable() and char != " ":
+        return "\\" + char
     if cp <= 0xFF:
         return f"\\x{cp:02x}"
     if cp <= 0xFFFF:

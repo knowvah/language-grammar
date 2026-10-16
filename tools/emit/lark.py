@@ -64,8 +64,12 @@ first-match and stateful), so interpreter/Lark disagreements are expected:
   ``empty`` context (upstream factories reject empty bodies).
 * Comment lines (``'...`` and ``/' ... '/``, dropped upstream by ReadFilterQuoteComment
   before any factory sees them) are accepted wherever a blank line is.
-* ``ci: true`` regex terminals carry the Lark ``i`` flag; absent means case-sensitive.
+* ``ci: true`` folds ASCII case only (Java's ``CASE_INSENSITIVE``): letters become explicit
+  ``[aA]`` classes, there is no Lark ``i`` flag; absent means case-sensitive.
 * Ordered alternatives become unordered ``|``; ``opaque`` is treated as ``single``.
+* Regexes carry Java semantics in the model and are translated first with
+  ``tools.model.java_regex.to_python`` (``lark_regex.lark_pattern``): ASCII classes, line-bounded
+  ``.``, ASCII case folding as explicit classes, ``$`` as a line end.
 * Regexes: the lexer is Lark's ``dynamic`` Earley lexer with ``regex=True`` (the
   third-party ``regex`` module), because expanded patterns contain ``\\p{L}``-style
   classes that ``re`` rejects. Terminals match greedily at one position (no
@@ -98,6 +102,7 @@ from tools.emit.keywords import (
     START_DIRECTIVE,
     UML_KEYWORD,
     document_start_map,
+    other_start_pattern,
     start_keywords,
 )
 from tools.emit.keywords import (
@@ -115,12 +120,14 @@ from tools.emit.lark_regex import (
 from tools.emit.lark_regex import (
     nullable_part,
     regex_terminal,
+    render_literal_body,
 )
 from tools.emit.lark_regex import (
     prefer_longest as prefer_longest,
 )
 from tools.emit.tops import emitted_diagrams
 from tools.model import Entry, Part, ResolvedModel, ResolvedModels
+from tools.model.java_regex import literal_to_python
 
 KIND_MULTILINE = "multiline"
 KIND_BRACKET = "multiline-bracket"
@@ -141,9 +148,14 @@ PRELUDE = (
 
 
 def lark_string(text: str, ci: bool) -> str:
-    """A Lark string literal (``"..."`` or ``"..."i``)."""
-    body = json.dumps(text, ensure_ascii=False)
-    return body + ("i" if ci else "")
+    """A Lark literal for fixed text: a string, or under ``ci`` with ASCII letters a regex.
+
+    Lark's ``"..."i`` folds Unicode (U+212A matches ``k``); Java's ``CASE_INSENSITIVE``
+    does not, so a ci literal with letters is the explicit class form (``[cC][lL]...``).
+    """
+    if ci and any(c.isascii() and c.isalpha() for c in text):
+        return "/" + render_literal_body(literal_to_python(text, ci=True)) + "/"
+    return json.dumps(text, ensure_ascii=False)
 
 
 class _Diagram(FlowBuilder):
@@ -289,7 +301,9 @@ class _Diagram(FlowBuilder):
 END_TERMINAL = "END_BLOCK"
 
 
-def _blocks(groups: dict[str, list[str]]) -> tuple[list[str], list[str]]:
+def _blocks(
+    groups: dict[str, list[str]], start_map: dict[str, list[str]]
+) -> tuple[list[str], list[str]]:
     """Block rules and START/END terminals: one START per keyword, one shared END."""
     rules: list[str] = []
     terminals: list[str] = [rf"{END_TERMINAL}: /[ \t]*{END_DIRECTIVE}[^\r\n]*/"]
@@ -299,6 +313,8 @@ def _blocks(groups: dict[str, list[str]]) -> tuple[list[str], list[str]]:
         rules.append(f"block_{keyword}: START_{upper} _NL{body} {END_TERMINAL}")
         start = rf"/[ \t]*{START_DIRECTIVE}{keyword}(?![A-Za-z0-9])[^\r\n]*/i"
         terminals.append(f"START_{upper}: {start}")
+    rules.append(f"block_other: START_OTHER _NL (_BODY_LINE? _NL)* {END_TERMINAL}")
+    terminals.append(f"START_OTHER: /{other_start_pattern([*start_map, *groups])}/i")
     return rules, terminals
 
 
@@ -318,10 +334,10 @@ def emit_lark(resolved: ResolvedModels) -> str:
             groups.setdefault(keyword, []).append(diagram.body)
     if not groups:
         groups[UML_KEYWORD] = []
-    block_rules, block_terminals = _blocks(groups)
+    block_rules, block_terminals = _blocks(groups, start_map)
     head = [
         HEADER,
         "start: _NL* block (_NL+ block)* _NL*",
-        "block: " + " | ".join(f"block_{k}" for k in groups),
+        "block: " + " | ".join([*(f"block_{k}" for k in groups), "block_other"]),
     ]
     return "\n".join([*head, *block_rules, *rules, *PRELUDE, *block_terminals, *terminals]) + "\n"

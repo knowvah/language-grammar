@@ -73,20 +73,23 @@ def test_snake_never_empty() -> None:
 
 
 def test_lark_string_ci_and_escapes() -> None:
-    assert emitter.lark_string('a"b\\', ci=True) == '"a\\"b\\\\"i'
+    assert emitter.lark_string('a"b\\', ci=False) == '"a\\"b\\\\"'
+    # Lark's "..."i folds Unicode; Java's CASE_INSENSITIVE folds ASCII, so a regex is emitted.
+    assert emitter.lark_string("ab", ci=True) == "/[aA][bB]/"
+    assert emitter.lark_string("1-", ci=True) == '"1-"'
     assert emitter.lark_string("é", ci=False) == '"é"'
 
 
 @pytest.mark.parametrize(
     ("pattern", "literal", "nullable"),
     [
-        ("^\\w+$", "/\\w+/", False),
+        ("^\\w+$", "/[0-9A-Z\\_a-z]+/", False),
         ("a\\$", "/a\\$/", False),
         ("a\\\\$", "/a\\\\/", False),
         ("a/b", "/a\\/b/", False),
         ("a\\/b", "/a\\/b/", False),
         ("a\nb", "/a\\nb/", False),
-        ("\\s*", "/(?V0)(?=[\\s\\S])(?:[^\\S\\r\\n]*)/", True),
+        ("\\s*", "/(?V0)(?=[\\s\\S])(?:[\\x09\\x0b-\\x0c\\x20]*)/", True),
     ],
 )
 def test_regex_terminal(pattern: str, literal: str, nullable: bool) -> None:
@@ -99,11 +102,13 @@ def test_emit_is_deterministic(grammar_text: str) -> None:
 
 def test_emit_structure(grammar_text: str) -> None:
     lines = grammar_text.splitlines()
-    assert "block: block_uml | block_salt" in lines
-    assert 'class_command_create_class: ("class"i /[^\\S\\r\\n]+/ CLASS_IDENT)' in lines
-    ident = "CLASS_IDENT: /(?:[\\p{L}_][\\p{L}\\p{N}_]*)" + emitter.EOL_LOOKAHEAD + "/"
+    assert "block: block_uml | block_salt | block_other" in lines
+    blank = "/[\\x09\\x0b-\\x0c\\x20]+/"
+    assert f"class_command_create_class: (/[cC][lL][aA][sS][sS]/ {blank} CLASS_IDENT)" in lines
+    assert "block_other: START_OTHER _NL (_BODY_LINE? _NL)* END_BLOCK" in lines
+    ident = "CLASS_IDENT: /(?:[\\_\\p{L}][\\_\\p{L}\\p{N}]*)" + emitter.EOL_LOOKAHEAD + "/"
     assert ident in lines
-    assert "CLASS_IDENT_2: /[\\p{L}_][\\p{L}\\p{N}_]*/" in lines
+    assert "CLASS_IDENT_2: /[\\_\\p{L}][\\_\\p{L}\\p{N}]*/" in lines
     assert not any(line.startswith("%ignore") for line in lines)
 
 
@@ -253,7 +258,7 @@ def test_repeat_of_atom_is_inline_but_compound_body_is_hoisted() -> None:
 def test_nullable_regex_is_hoisted_optional() -> None:
     diagram, ref = _diagram({"regex": "\\s*"})
     assert ref == "_o"
-    assert diagram.rules == ["_o: /(?V0)(?=[\\s\\S])(?:[^\\S\\r\\n]*)/ |"]
+    assert diagram.rules == ["_o: /(?V0)(?=[\\s\\S])(?:[\\x09\\x0b-\\x0c\\x20]*)/ |"]
 
 
 def test_many_optional_parts_compile_without_product_blowup() -> None:

@@ -32,9 +32,18 @@ Conventions (repeated in the generated header):
   become unordered ``|``. ``require_pop`` backtracking (the interpreter retries the pushing
   line when a body never closes) is not expressible.
 
+Regex dialect: model regexes carry Java semantics (``docs/grammar-guide.md``, "Regex
+semantics"). Only the Lark emitter converts them with ``tools.model.java_regex.to_python``,
+because Lark runs on Python's ``regex`` module. This emitter targets a notation and keeps
+the model text, applying its own ASCII conventions above; TextMate targets Oniguruma
+(``(?i)`` there is Unicode-folding, a known approximation). Neither is routed through
+``to_python``.
+
 Framing: blocks follow ``tools.emit.keywords`` (a model sits under every start keyword whose
 ``start_map`` factory list names its factory) and end at one shared ``END_BLOCK`` that accepts
-any ``@end...`` / ``\\end...`` line.
+any ``@end...`` / ``\\end...`` line. ``block_other`` stands for a start word no keyword covers
+(``PSystemUnsupported``, accepted upstream); its keyword exclusion is a lookahead, so the
+production overlaps the keyword starts and the header says so.
 
 ``emit_w3c`` returns the text (the ``tools.emit.build`` contract); ``emit_w3c_with_lossiness``
 also returns the lossiness entries. The header states the total and a per-construct tally.
@@ -130,6 +139,7 @@ class _Diagram(FlowBuilder):
 
 END_RULE = "END_BLOCK"
 DIRECTIVE_CHARS = '("@" | "\\")'
+OTHER_WORD = f'"start" {NOT_EOL}+'  # any start word; the keyword exclusion is not expressible
 
 
 def _blocks(groups: dict[str, list[str]]) -> list[str]:
@@ -145,6 +155,8 @@ def _blocks(groups: dict[str, list[str]]) -> list[str]:
         lines.append(
             f"START_{keyword.upper()} ::= {INLINE_WS}* {DIRECTIVE_CHARS} {start} {NOT_EOL}*"
         )
+    lines.append(f"block_other ::= START_OTHER NL (BODY_LINE? NL)* {END_RULE}")
+    lines.append(f"START_OTHER ::= {INLINE_WS}* {DIRECTIVE_CHARS} {OTHER_WORD}")
     lines.append(f'{END_RULE} ::= {INLINE_WS}* {DIRECTIVE_CHARS} "end" {NOT_EOL}*')
     return lines
 
@@ -158,6 +170,8 @@ def _header(lossy: list[Lossy]) -> str:
         "Case-insensitive literals: each cased letter is a class, class = [Cc][Ll][Aa][Ss][Ss].",
         "Character shorthands use ASCII semantics; ^ and $ anchors are dropped.",
         "Start lines allow trailing text after the keyword (lookahead not expressible).",
+        "block_other (an unsupported @start word, PSystemUnsupported) overlaps the keyword",
+        "starts: the exclusion of keyword prefixes is a lookahead, so it is only stated here.",
         "A block ends at ANY end directive (@end..., \\end...), like StartUtils.isEndDirective.",
         f"Lossiness: {len(lossy)} constructs approximated ({detail}).",
         "Each is a *_lossy production carrying its original regex in a comment.",
@@ -181,7 +195,7 @@ def emit_w3c_with_lossiness(resolved: ResolvedModels) -> tuple[str, list[Lossy]]
         groups[UML_KEYWORD] = []
     top = [
         "plantuml ::= NL* block (NL+ block)* NL*",
-        "block ::= " + " | ".join(f"block_{k}" for k in groups),
+        "block ::= " + " | ".join([*(f"block_{k}" for k in groups), "block_other"]),
     ]
     text = "\n".join([_header(sink.lossy), *top, *_blocks(groups), *rules, *PRELUDE]) + "\n"
     return text, sink.lossy

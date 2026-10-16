@@ -39,7 +39,9 @@ POSIX_CLOSE = ":]"
 NEWLINE, CARRIAGE_RETURN = 10, 13
 NEVER = r"[^\x00-\U0010ffff]"
 CODE_ESCAPES = {"n": 10, "r": 13, "t": 9, "f": 12, "v": 11, "0": 0}
-HEX_ESCAPE = re.compile(r"\\(?:x([0-9A-Fa-f]{2})|u([0-9A-Fa-f]{4})|x\{([0-9A-Fa-f]+)\})")
+HEX_ESCAPE = re.compile(
+    r"\\(?:x([0-9A-Fa-f]{2})|u([0-9A-Fa-f]{4})|U([0-9A-Fa-f]{8})|x\{([0-9A-Fa-f]+)\})"
+)
 
 
 def _property_end(pattern: str, index: int) -> int:

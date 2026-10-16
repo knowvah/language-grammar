@@ -111,7 +111,7 @@ def test_single_line_behaviour_is_unchanged() -> None:
 
 def test_regex_terminal_rewrites_before_wrapping() -> None:
     literal, nullable = regex_terminal(r"^\s*$")
-    assert literal == r"/(?V0)(?=[\s\S])(?:[^\S\r\n]*)/"
+    assert literal == r"/(?V0)(?=[\s\S])(?:[\x09\x0b-\x0c\x20]*)/"
     assert nullable
 
 
@@ -202,3 +202,7 @@ def test_rewritten_class_matches_the_same_text_without_line_ends(pattern: str) -
         want = original.match(PROBE_LINE_ENDS, start)
         if want and not re.search(r"[\r\n]", want.group(0)):
             assert got is not None and got.group(0) == want.group(0)
+
+
+def test_positive_class_with_eight_digit_escapes_loses_line_ends() -> None:
+    assert line_bounded(r"[\x00-\U0010ffff]+") == r"[\x00-\x09\x0b-\x0c\x0e-\U0010ffff]+"

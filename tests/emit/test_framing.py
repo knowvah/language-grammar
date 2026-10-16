@@ -146,7 +146,7 @@ def test_w3c_has_one_shared_end_production_accepting_any_end_directive(toy_resol
     ends = [line for line in text.splitlines() if line.startswith("END_")]
     assert ends == ['END_BLOCK ::= [#x20#x9]* ("@" | "\\") "end" [^#xD#xA]*']
     assert "block_sprites ::= START_SPRITES NL " in text
-    assert text.count("END_BLOCK") == 1 + 4  # definition + four blocks
+    assert text.count("END_BLOCK") == 1 + 4 + 1  # definition + four blocks + block_other
 
 
 def test_textmate_block_ends_at_any_end_directive(toy_resolved) -> None:
@@ -155,3 +155,36 @@ def test_textmate_block_ends_at_any_end_directive(toy_resolved) -> None:
     assert {b["end"] for b in blocks} == {r"^\s*([@\\]end[A-Za-z0-9]*)"}
     assert [b["begin"] for b in blocks][3] == r"(?i)^\s*([@\\]startsprites)(?![A-Za-z0-9])"
     assert "diagram_project" in grammar["repository"]
+
+
+# --- start words no keyword covers (PSystemUnsupported) --------------------------------------
+
+
+def test_other_start_pattern_excludes_every_keyword_prefix_longest_first() -> None:
+    pattern = keywords.other_start_pattern(["uml", "gantt", "mindmap"])
+    assert pattern == r"[ \t]*[@\\]start(?!(?:mindmap|gantt|uml))[^\r\n]+"
+
+
+@pytest.mark.parametrize("word", ["jcckit", "chronology", "x", "Zzz"])
+def test_lark_unknown_start_word_opens_an_accepted_block(toy_parser, word: str) -> None:
+    assert status(toy_parser, f"@start{word}\nanything at all {{\n@end{word}\n") == ACCEPT
+    assert status(toy_parser, f"@start{word}\n@end{word}\n") == ACCEPT
+
+
+@pytest.mark.parametrize("start", ["@startnomodel", "@startNoModel", "@startuml_x", "@start"])
+def test_lark_keyword_prefixed_and_empty_words_are_not_unsupported(toy_parser, start: str) -> None:
+    # `nomodel` is a start_map key without a model: the factory would run, so it is not
+    # PSystemUnsupported. A bare `@start` is not a start directive (StartUtils.java:51-63).
+    assert status(toy_parser, f"{start}\nanything\n@end\n") == REJECT
+
+
+def test_lark_unknown_word_block_still_needs_an_end_directive(toy_parser) -> None:
+    assert status(toy_parser, "@startjcckit\nbody\n") == REJECT
+
+
+def test_w3c_states_the_unsupported_block_and_its_overlap(toy_resolved) -> None:
+    text = w3c.emit_w3c(toy_resolved)
+    assert "block_other ::= START_OTHER NL (BODY_LINE? NL)* END_BLOCK" in text
+    assert 'START_OTHER ::= [#x20#x9]* ("@" | "\\") "start" [^#xD#xA]+' in text
+    block = next(line for line in text.splitlines() if line.startswith("block ::= "))
+    assert block.endswith(" | block_other")

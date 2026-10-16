@@ -226,7 +226,7 @@ def test_sets_helpers() -> None:
         (0x78, 0x7A),
     ]
     assert fold_ascii([(0x30, 0x39)]) == [(0x30, 0x39)]
-    assert cp_text(0x41) == "A" and cp_text(0x5F) == "\\x5f"
+    assert cp_text(0x41) == "A" and cp_text(0x5F) == "\\_"
     assert cp_text(0x2028) == "\\u2028" and cp_text(0x1F600) == "\\U0001f600"
     assert ranges_text([(1, 1), (3, 4), (6, 9)]) == "\\x01\\x03\\x04\\x06-\\x09"
     assert class_text([(0x61, 0x61)], ["\\p{L}"], negated=True) == "[^a\\p{L}]"
@@ -315,3 +315,10 @@ def test_fresh_seed_agrees_with_live_java() -> None:
         got = vectors.python_verdicts(case, strings)
         for i, (a, b) in enumerate(zip(got, expected, strict=True)):
             assert a == b or not vectors.comparable(case, strings[i]), (case, strings[i])
+
+
+def test_end_anchor_replaces_dollar_and_z_but_not_absolute_end() -> None:
+    marker = "(?=END)"
+    assert to_python("a$b\\Zc\\z", end_anchor=marker).count(marker) == 2
+    assert to_python("a\\z", end_anchor=marker) == "a\\Z"
+    assert to_python("a$") != to_python("a$", end_anchor=marker)

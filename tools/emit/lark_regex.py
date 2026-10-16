@@ -14,8 +14,10 @@ from lark.utils import get_regexp_width
 
 from tools.emit.linebound import line_bounded
 from tools.model import Part
+from tools.model.java_regex import to_python
 
 EOL_LOOKAHEAD = r"(?=[ \t]*(?:\r?\n|\Z))"
+LINE_END = r"(?=\r|\n|\Z)"  # `$` / `\Z` inside a terminal: the end of its line
 NULLABLE_PREFIX = r"(?V0)(?=[\s\S])(?:"
 _PLAIN = r"(?:[^()\[\]{}|*+?.^$\\\r\n]|\\[^\w\s])+"
 _WORD_ALTERNATION = re.compile(rf"(?P<open>\((?:\?:)?)(?P<alts>{_PLAIN}(?:\|{_PLAIN})+)\)")
@@ -113,29 +115,33 @@ def render_literal_body(pattern: str) -> str:
     return "".join(out)
 
 
-def lark_pattern(pattern: str) -> str:
+def lark_pattern(pattern: str, ci: bool = False) -> str:
     """THE model-regex -> Lark-terminal-regex translation (one place for every rewrite).
 
     Every regex that reaches a Lark terminal, and every static width check on one
-    (``regex_terminal``, ``nullable_part``), goes through this function; a change of regex
-    dialect (e.g. translating Java syntax) belongs at its head. Stages, in order: drop the
-    ``^`` / ``$`` anchors, bound the pattern to one line, put alternatives that extend an
-    earlier one first, make lazy quantifiers greedy.
+    (``regex_terminal``, ``nullable_part``), goes through this function. Stages, in order:
+    drop the ``^`` / ``$`` anchors; give the Java text Python-``regex`` meaning
+    (``tools.model.java_regex.to_python``: ASCII classes, line-bounded ``.``, ASCII case
+    folding as explicit ``[aA]`` classes for ``ci``, any remaining ``$`` / ``\\Z`` as a line
+    end, never the end of the whole text); bound the pattern to one line; put alternatives
+    that extend an earlier one first; make lazy quantifiers greedy. Terminals carry no Lark
+    ``i`` flag: that flag folds Unicode, Java's ``CASE_INSENSITIVE`` folds ASCII only.
     """
-    return greedy(prefer_longest(line_bounded(strip_anchors(pattern))))
+    java = to_python(strip_anchors(pattern), ci=ci, end_anchor=LINE_END)
+    return greedy(prefer_longest(line_bounded(java)))
 
 
 def regex_terminal(pattern: str, ci: bool = False, eol: bool = False) -> tuple[str, bool]:
-    """Lark ``/.../`` literal for ``pattern`` (flag ``i`` when ``ci``) and whether it
-    needed the nullable guard. With ``eol`` the match must end at the line end (the
-    stripped ``$``), so lazy and greedy quantifiers both reach it."""
-    pattern = lark_pattern(pattern)
+    """Lark ``/.../`` literal for ``pattern`` (``ci`` folds ASCII case inside the pattern)
+    and whether it needed the nullable guard. With ``eol`` the match must end at the line
+    end (the stripped ``$``), so lazy and greedy quantifiers both reach it."""
+    pattern = lark_pattern(pattern, ci)
     nullable = get_regexp_width(pattern)[0] == 0
     if eol:
         pattern = f"(?:{pattern}){EOL_LOOKAHEAD}"
     if nullable:
         pattern = NULLABLE_PREFIX + pattern + ")"
-    return "/" + render_literal_body(pattern) + "/" + ("i" if ci else ""), nullable
+    return "/" + render_literal_body(pattern) + "/", nullable
 
 
 def nullable_part(part: Part) -> bool:
@@ -149,7 +155,7 @@ def nullable_part(part: Part) -> bool:
     if "plus" in part:
         return nullable_part(part["plus"])
     if "regex" in part:
-        return get_regexp_width(lark_pattern(part["regex"]))[0] == 0
+        return get_regexp_width(lark_pattern(part["regex"], bool(part.get("ci"))))[0] == 0
     return False
 
 

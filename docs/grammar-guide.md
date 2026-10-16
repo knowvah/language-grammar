@@ -447,9 +447,12 @@ terminator that `line_pattern` allows. Fidelity is tested against real Java:
 `tests/fixtures/java_regex/vectors.json` holds Java's verdicts for 1,000+ generated patterns on
 200+ strings, and a corpus-marked test regenerates them with `java` (`Vectors.java`) and compares.
 
-Consumers: the interpreter (`tools/interp/compile.py`) translates every Part. Emitters that
-render for the `regex` module (Lark) apply the same translation; TextMate, W3C and Sublime emit
-for other engines and must reproduce the same table in their own dialect.
+Consumers: the interpreter (`tools/interp/compile.py`) translates every Part, and so does the Lark
+emitter (`tools/emit/lark_regex.py:lark_pattern`, because Lark runs on the `regex` module): there
+`ci` is explicit `[aA]` classes (no Lark `i` flag, ci literals become regex terminals) and `$`/`\Z`
+inside a terminal become a line-end lookahead (`end_anchor`), never the end of the whole text. The
+W3C and TextMate emitters keep the model's Java text: they target a notation and Oniguruma, which
+are their own engines (they apply their own ASCII conventions and document the approximations).
 
 ## Naming conventions
 
