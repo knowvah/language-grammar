@@ -202,6 +202,20 @@
       "first_failure": null,
       "interp": true,
       "interp_diagram": "DESCRIPTION",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "DESCRIPTION",
+      "path": "dbhum/d_er/deroxu-29-gude369.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "DESCRIPTION",
       "kind": "raw_fr",
       "lark": null,
       "note": "",
@@ -1104,6 +1118,6 @@
     "fr": 0,
     "oracle_accepted": 725,
     "raw_fr": 59,
-    "timeout": 11
+    "timeout": 12
   }
 }

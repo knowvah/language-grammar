@@ -14,10 +14,18 @@ from lark.utils import get_regexp_width
 
 from tools.emit.linebound import line_bounded
 from tools.model import Part
-from tools.model.java_regex import to_python
+from tools.model.java_regex import literal_to_python, to_python
 
 EOL_LOOKAHEAD = r"(?=[ \t]*(?:\r?\n|\Z))"
 LINE_END = r"(?=\r|\n|\Z)"  # `$` / `\Z` inside a terminal: the end of its line
+# `$` inside a fused guard: no `\Z`, because dynamic_complete re-matches a guarded terminal
+# against its own truncated text, where `\Z` would be a false line end. A body line is
+# always followed by a newline (the block's end line comes after it).
+GUARD_LINE_END = r"(?=\r|\n)"
+# Emitter-internal Part keys set by ``tools.emit.guards`` (never in a model file).
+PRE_KEY = "_pre"  # guards, as (model regex, ci) pairs, checked before the terminal
+POST_KEY = "_post"  # guards checked after it
+NONEMPTY_KEY = "_nonempty"  # the non-empty form of a nullable regex
 NULLABLE_PREFIX = r"(?V0)(?=[\s\S])(?:"
 _PLAIN = r"(?:[^()\[\]{}|*+?.^$\\\r\n]|\\[^\w\s])+"
 _WORD_ALTERNATION = re.compile(rf"(?P<open>\((?:\?:)?)(?P<alts>{_PLAIN}(?:\|{_PLAIN})+)\)")
@@ -131,11 +139,35 @@ def lark_pattern(pattern: str, ci: bool = False) -> str:
     return greedy(prefer_longest(line_bounded(java)))
 
 
+def guard_pattern(pattern: str, ci: bool = False) -> str:
+    """``lark_pattern`` for a fused guard: anchors kept, ``$`` is ``GUARD_LINE_END``."""
+    java = to_python(pattern, ci=ci, end_anchor=GUARD_LINE_END)
+    return greedy(prefer_longest(line_bounded(java)))
+
+
 def regex_terminal(pattern: str, ci: bool = False, eol: bool = False) -> tuple[str, bool]:
     """Lark ``/.../`` literal for ``pattern`` (``ci`` folds ASCII case inside the pattern)
     and whether it needed the nullable guard. With ``eol`` the match must end at the line
     end (the stripped ``$``), so lazy and greedy quantifiers both reach it."""
-    pattern = lark_pattern(pattern, ci)
+    return python_terminal(lark_pattern(pattern, ci), eol)
+
+
+def part_terminal(part: Part, eol: bool = False) -> tuple[str, bool]:
+    """``regex_terminal`` for a regex or literal Part with the guards fused into it."""
+    ci = bool(part.get("ci"))
+    if "regex" in part:
+        core = lark_pattern(part["regex"], ci)
+    else:
+        core = literal_to_python(part["literal"], ci=ci)
+    pre = "".join(f"(?:{guard_pattern(g, gci)})" for g, gci in part.get(PRE_KEY, ()))
+    post = "".join(f"(?:{guard_pattern(g, gci)})" for g, gci in part.get(POST_KEY, ()))
+    if pre or post:
+        core = f"{pre}(?:{core}){post}"
+    return python_terminal(core, eol)
+
+
+def python_terminal(pattern: str, eol: bool) -> tuple[str, bool]:
+    """Lark literal for a translated pattern (see ``regex_terminal``)."""
     nullable = get_regexp_width(pattern)[0] == 0
     if eol:
         pattern = f"(?:{pattern}){EOL_LOOKAHEAD}"
@@ -146,6 +178,8 @@ def regex_terminal(pattern: str, ci: bool = False, eol: bool = False) -> tuple[s
 
 def nullable_part(part: Part) -> bool:
     """Whether ``part`` can match the empty string."""
+    if part.get(NONEMPTY_KEY):
+        return False
     if "seq" in part:
         return all(nullable_part(p) for p in part["seq"])
     if "alt" in part:

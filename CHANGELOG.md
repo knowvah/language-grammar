@@ -10,6 +10,9 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 - Lark and TextMate start terminals match a start keyword as a prefix, like
   `DiagramType.check`: `@startumlx` opens a `uml` block instead of being rejected (#7).
+- Lark keeps zero-width guards (lookahead/lookbehind-only Parts such as `D_NOT_FORBIDDEN`):
+  each is folded into the terminals around it (`tools/emit/guards.py`) instead of being
+  emitted as an optional terminal Earley could skip (#3).
 
 ### Added
 - TextMate frames a start word that no keyword covers (`@startjcckit`) as an opaque

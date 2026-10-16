@@ -88,26 +88,25 @@ KIND_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
 OTHER_COLUMNS = ("disagree", "timeout", "diagram_mismatch", "raw_fr")
 OTHER_HEADERS = ("Lark disagreements", "Lark timeouts", "Diagram mismatches", "Raw-mode FR")
 
-# Findings for the 0.1.0 measurement (reports/parity-*.json as of that run). They explain the
+# Findings for the latest measurement (reports/parity-*.json as of that run). They explain the
 # non-gating columns of the table above; rerun the parity harness before trusting the numbers.
 OTHER_NOTES = """
 These counts do not gate the release (the D5 gates are FR and FA); each kind is explained
-below as measured for 0.1.0.
+below as measured after the zero-width guard fix (#3; 0.1.0 numbers in parentheses).
 
-**Lark disagreements (44: vega 3, plantuml-ts 18, pdiff 23).**
-* Lark accepts, jar and interpreter reject (37). Emitters cannot express `reject`,
-  `emit: false`, `require_pop` and `gives`/`needs` entries (`tools/emit/skip.py`). With those
-  entries removed from the models, the interpreter accepts 26 of the 37, which accounts for
-  them (for example packet zero-width rows, gantt `needs project_start`, an `else` without
-  an open `if`). Three more (`foo` after a link in a description diagram, in both corpora)
-  come from the Lark encoding of a zero-width guard: a rule that is only a negative
-  lookahead (`D_NOT_FORBIDDEN`) is emitted as an optional terminal (`tools/emit/lark.py`,
-  nullable regexes), so the guard no longer excludes anything. Eight are not diagnosed to
-  a root cause: `vevatu-41` (`portin` in a body), `jokaxi-40` (`("Basic routine")` lines)
-  and `veducu-71` (a `}` closing a `partition` with an open `fork`), each in both corpora,
-  and the empty `@startuml` blocks of `vega/sub/subfile.puml` and
-  `dbhum/k_om/komoso-43-xika169.puml`. All 37 are jar-rejected syntax errors, so they cost
-  no false reject.
+**Lark disagreements (39: vega 3, plantuml-ts 16, pdiff 20; 0.1.0: 44).**
+* Lark accepts, jar and interpreter reject (32; 0.1.0: 37). Emitters cannot express
+  `reject`, `emit: false`, `require_pop` and `gives`/`needs` entries (`tools/emit/skip.py`).
+  With those entries removed from the models, the interpreter accepts 26 of the 32, which
+  accounts for them (for example packet zero-width rows, gantt `needs project_start`, an
+  `else` without an open `if`). Six are not diagnosed to a root cause: `jokaxi-40`
+  (`("Basic routine")` lines) and `veducu-71` (a `}` closing a `partition` with an open
+  `fork`), each in both corpora, and the empty `@startuml` blocks of
+  `vega/sub/subfile.puml` and `dbhum/k_om/komoso-43-xika169.puml`. All 32 are jar-rejected
+  syntax errors, so they cost no false reject. The five that 0.1.0 listed here and #3 fixed
+  (`foo` after a link, three blocks, and `vevatu-41`, `portin` in a body, two) were
+  zero-width guards that Lark emitted as optional terminals; `tools/emit/guards.py` now
+  folds every guard into the terminals around it.
 * Lark rejects, jar and interpreter accept (7: plantuml-ts activity3 3 and class 1, pdiff
   activity3 2 and class 1). Lark approximates multiline constructs (`join` as one line,
   bracket depth as the first `}`; see the guide, "Multiline kinds"). Checked: multi-line
@@ -115,8 +114,11 @@ below as measured for 0.1.0.
   `<style>` braces (`neruke-07`). The others (`lopone-15`, `dulavu-67`) were not checked
   individually.
 
-**Lark timeouts (62: plantuml-ts 27, pdiff 35).** The harness budget is 10 s per block.
-Re-running all 62 with a 60 s budget: 44 finish in 11.6 to 39.1 s and every one agrees with
+**Lark timeouts (71: plantuml-ts 31, pdiff 40; 0.1.0: 62).** The harness budget is 10 s per
+block, and blocks near it move with machine load: the nine added since 0.1.0 were re-run
+serially with a 60 s budget on both the 0.1.0 and the current grammar, and all finish in
+9.4 to 17.5 s with the same verdict as the jar and nearly the same time on either grammar.
+Re-running the 62 of 0.1.0 with a 60 s budget: 44 finish in 11.6 to 39.1 s and every one agrees with
 the jar and the interpreter (accept); 18 still exceed 60 s (description 8, sequence 4,
 class 2, and 4 jar-rejected blocks, `vipixe-71-rika369` and `kipive-74-lele070` in both
 corpora). The cost is Earley ambiguity over the large unions of command alternatives, not

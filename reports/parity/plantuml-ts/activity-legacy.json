@@ -16,6 +16,20 @@
     },
     {
       "block": 0,
+      "class": "unclassified",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "ACTIVITY",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "ACTIVITY",
+      "path": "class/lobosa-57-gozi031.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
       "class": "bug",
       "first_failure": null,
       "interp": true,
@@ -40,6 +54,6 @@
     "fr": 0,
     "oracle_accepted": 119,
     "raw_fr": 0,
-    "timeout": 1
+    "timeout": 2
   }
 }

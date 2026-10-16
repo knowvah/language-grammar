@@ -27,6 +27,36 @@
       "note": "",
       "oracle": true,
       "oracle_type": "ACTIVITY",
+      "path": "dbhum/c_om/comucu-92-moxi625.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "family": "activity-legacy",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "ACTIVITY",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "ACTIVITY",
+      "path": "dbhum/l_ob/lobosa-57-gozi031.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "family": "activity-legacy",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "ACTIVITY",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "ACTIVITY",
       "path": "dbhum/p_ud/pudixe-16-deki169.puml",
       "status": "ok"
     },
@@ -2542,6 +2572,21 @@
       "first_failure": null,
       "interp": true,
       "interp_diagram": "DESCRIPTION",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "DESCRIPTION",
+      "path": "dbhum/d_er/deroxu-29-gude369.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "family": "description",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "DESCRIPTION",
       "kind": "raw_fr",
       "lark": null,
       "note": "",
@@ -3958,6 +4003,21 @@
       "first_failure": null,
       "interp": true,
       "interp_diagram": "SEQUENCE",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "SEQUENCE",
+      "path": "dbhum/d_ug/dugeki-47-celo546.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "family": "sequence",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "SEQUENCE",
       "kind": "raw_fr",
       "lark": null,
       "note": "",
@@ -4748,6 +4808,21 @@
     },
     {
       "block": 0,
+      "class": "unclassified",
+      "family": "sequence",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "SEQUENCE",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "SEQUENCE",
+      "path": "dbhum/z_ur/zuravu-52-mike252.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
       "class": "semantic",
       "family": "single-line",
       "first_failure": null,
@@ -5171,42 +5246,6 @@
       "class": "unclassified",
       "family": "unclassified",
       "first_failure": {
-        "line": 3,
-        "text": "foo"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "dbhum/s_ir/sirimo-08-ceju218.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "family": "unclassified",
-      "first_failure": {
-        "line": 2,
-        "text": "foo"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "dbhum/t_um/tumepe-28-zuma441.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "family": "unclassified",
-      "first_failure": {
         "line": 7,
         "text": "}"
       },
@@ -5236,24 +5275,6 @@
       "oracle": false,
       "oracle_type": null,
       "path": "dbhum/v_el/velodu-59-sada437.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "family": "unclassified",
-      "first_failure": {
-        "line": 43,
-        "text": "portin scene as Focus.scene"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "dbhum/v_ev/vevatu-41-xixo630.puml",
       "status": "reject"
     },
     {
@@ -5359,7 +5380,7 @@
         "fr": 0,
         "oracle_accepted": 119,
         "raw_fr": 0,
-        "timeout": 1
+        "timeout": 3
       }
     },
     "activity3": {
@@ -5424,7 +5445,7 @@
         "fr": 0,
         "oracle_accepted": 725,
         "raw_fr": 59,
-        "timeout": 11
+        "timeout": 12
       }
     },
     "gantt": {
@@ -5528,7 +5549,7 @@
         "fr": 0,
         "oracle_accepted": 1255,
         "raw_fr": 53,
-        "timeout": 4
+        "timeout": 6
       }
     },
     "single-line": {
@@ -5588,7 +5609,7 @@
       "totals": {
         "blocks": 116,
         "diagram_mismatch": 0,
-        "disagree": 18,
+        "disagree": 15,
         "fa": 0,
         "fr": 0,
         "oracle_accepted": 7,
@@ -5601,11 +5622,11 @@
   "totals": {
     "blocks": 5834,
     "diagram_mismatch": 49,
-    "disagree": 23,
+    "disagree": 20,
     "fa": 47,
     "fr": 0,
     "oracle_accepted": 5644,
     "raw_fr": 198,
-    "timeout": 35
+    "timeout": 40
   }
 }

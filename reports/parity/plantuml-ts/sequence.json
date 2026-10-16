@@ -636,6 +636,20 @@
       "first_failure": null,
       "interp": true,
       "interp_diagram": "SEQUENCE",
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": true,
+      "oracle_type": "SEQUENCE",
+      "path": "sequence/tatesu-03-zozo948.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "SEQUENCE",
       "kind": "raw_fr",
       "lark": null,
       "note": "",
@@ -824,6 +838,6 @@
     "fr": 0,
     "oracle_accepted": 1220,
     "raw_fr": 52,
-    "timeout": 3
+    "timeout": 4
   }
 }

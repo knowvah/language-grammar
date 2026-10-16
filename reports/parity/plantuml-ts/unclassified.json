@@ -208,23 +208,6 @@
       "block": 0,
       "class": "unclassified",
       "first_failure": {
-        "line": 43,
-        "text": "portin scene as Focus.scene"
-      },
-      "interp": false,
-      "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
-      "note": "",
-      "oracle": false,
-      "oracle_type": null,
-      "path": "class/vevatu-41-xixo630.puml",
-      "status": "reject"
-    },
-    {
-      "block": 0,
-      "class": "unclassified",
-      "first_failure": {
         "line": 11,
         "text": "class MessageJson2Xml {"
       },
@@ -259,17 +242,17 @@
       "block": 0,
       "class": "unclassified",
       "first_failure": {
-        "line": 3,
-        "text": "foo"
+        "line": 18,
+        "text": "class DrawableAdapter << (M, brown) >>"
       },
       "interp": false,
       "interp_diagram": null,
-      "kind": "disagree",
-      "lark": true,
+      "kind": "timeout",
+      "lark": false,
       "note": "",
       "oracle": false,
       "oracle_type": null,
-      "path": "sequence/sirimo-08-ceju218.puml",
+      "path": "sequence/pajude-35-jisu021.puml",
       "status": "reject"
     }
   ],
@@ -279,11 +262,11 @@
   "totals": {
     "blocks": 86,
     "diagram_mismatch": 0,
-    "disagree": 14,
+    "disagree": 12,
     "fa": 0,
     "fr": 0,
     "oracle_accepted": 0,
     "raw_fr": 0,
-    "timeout": 2
+    "timeout": 3
   }
 }
