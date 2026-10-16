@@ -233,7 +233,9 @@ Mirrors `PSystemBuilder.java:133-200` (factory order) and `:257-287` (try loop) 
   extends; it replaces the generated one in dispatch without editing `start_map`.
   Two top models for one factory is a load error.
 * Keyword lookup mirrors `DiagramType.findStartTypes`: exact key, then a key that is a
-  prefix of the keyword (`@startumlfoo` → `uml`). A keyword no key covers is
+  prefix of the keyword (`@startumlfoo` → `uml`). The word `start` is case-sensitive
+  (`@STARTUML` opens no block, `StartUtils.isStartDirective`); the keyword folds ASCII
+  `A`-`Z` only (`@startUML` is `uml`, `@startſalt` is not `salt`). A keyword no key covers is
   `PSystemUnsupported` (`PSystemErrorUtils.java:58-59`, `PSystemBuilder.java:283-284`),
   which is not a `PSystemError`: the verdict is accepted with `diagram`/`model` `None`,
   as the oracle reports it.

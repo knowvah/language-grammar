@@ -151,7 +151,7 @@ def _blocks(groups: dict[str, list[str]]) -> list[str]:
         body = f" ({joined})" if len(bodies) > 1 else f" {joined}" if bodies else ""
         lines.append(f"block_{keyword} ::= START_{upper} NL{body} {END_RULE}")
     for keyword in groups:
-        start = ci_literal(f"start{keyword}").text
+        start = f'"start" {ci_literal(keyword).text}'
         lines.append(
             f"START_{keyword.upper()} ::= {INLINE_WS}* {DIRECTIVE_CHARS} {start} {NOT_EOL}*"
         )

@@ -38,7 +38,7 @@ the exclusion (no lookahead) and says so in its comments.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from tools.emit.tops import emitted_diagrams
 from tools.model import ResolvedModel, ResolvedModels
@@ -60,23 +60,35 @@ UML_TYPES = frozenset(
     }
 )
 KEYWORD_OVERRIDES = {"CHEN_EER": "chen", "DEFINITION": "def", "PACKET": "packetdiag"}
-# Directive prefixes as regex text (``@`` or ``\``; StartUtils.java:51-63, 119-121).
+# Directive prefixes as regex text (``@`` or ``\``; StartUtils.java:51-63, 119-121). The word
+# ``start`` is case-sensitive (``regionMatches`` without ignoreCase); only the keyword after it
+# folds, and only ASCII ``A``-``Z`` (``DiagramType.check``), so each emitter folds the keyword.
 START_DIRECTIVE = r"[@\\]start"
 END_DIRECTIVE = r"[@\\]end"
 
 
-def uncovered_lookahead(keywords: Iterable[str]) -> str:
-    """Lookahead, placed after ``start``, that refuses every keyword prefix (each listed once)."""
-    covered = "|".join(sorted(set(keywords), key=lambda k: (-len(k), k)))
-    return f"(?!(?:{covered}))"
+Fold = Callable[[str], str]
 
 
-def other_start_pattern(keywords: Iterable[str]) -> str:
+def _as_is(keyword: str) -> str:
+    return keyword
+
+
+def uncovered_lookahead(keywords: Iterable[str], fold: Fold = _as_is) -> str:
+    """Lookahead, placed after ``start``, that refuses every keyword prefix (each listed once).
+
+    ``fold`` renders one keyword in the target regex dialect with its case folding.
+    """
+    ordered = sorted(set(keywords), key=lambda k: (-len(k), k))
+    return f"(?!(?:{'|'.join(map(fold, ordered))}))"
+
+
+def other_start_pattern(keywords: Iterable[str], fold: Fold = _as_is) -> str:
     """Regex body of the start line of a word that no keyword is a prefix of.
 
     At least one character must follow ``start`` (``StartUtils.isStartDirective``).
     """
-    return rf"[ \t]*{START_DIRECTIVE}{uncovered_lookahead(keywords)}[^\r\n]+"
+    return rf"[ \t]*{START_DIRECTIVE}{uncovered_lookahead(keywords, fold)}[^\r\n]+"
 
 
 def start_keyword(diagram: str) -> str:

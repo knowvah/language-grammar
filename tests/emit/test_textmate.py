@@ -123,9 +123,9 @@ def test_top_level_metadata(grammar: dict[str, Any]) -> None:
 def test_one_block_per_start_keyword(grammar: dict[str, Any]) -> None:
     blocks = [p for p in grammar["patterns"] if "begin" in p]
     assert [b["begin"] for b in blocks] == [
-        "(?i)^\\s*([@\\\\]startuml)",
-        "(?i)^\\s*([@\\\\]startsalt)",
-        "(?i)^\\s*([@\\\\]start(?!(?:salt|uml))(?=[^\\r\\n])\\S*)",
+        "^\\s*([@\\\\]start(?i:uml))",
+        "^\\s*([@\\\\]start(?i:salt))",
+        "^\\s*([@\\\\]start(?!(?:(?i:salt)|(?i:uml)))(?=[^\\r\\n])\\S*)",
     ]
     assert blocks[0]["patterns"][-1] == {"include": "#diagram_uml"}
     assert {"include": "#comments"} in blocks[1]["patterns"]

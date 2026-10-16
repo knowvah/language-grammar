@@ -103,7 +103,7 @@ def test_every_real_start_keyword_has_a_block_in_all_three_emitters(real_resolve
         assert f"START_{upper} ::=" in w3c_text, keyword
         assert f"START_{upper}: /" in lark_text, keyword
         assert f"diagram_{keyword}" in grammar["repository"], keyword
-        assert any(b.endswith(f"{keyword})") for b in blocks), keyword
+        assert any(b.endswith(f"start(?i:{keyword}))") for b in blocks), keyword
     assert len(blocks) == len(expected) + 1  # one block per keyword, then the unknown-word block
 
 
@@ -132,6 +132,25 @@ def test_lark_keyword_with_a_suffix_is_that_keyword(toy_parser) -> None:
     # `uml` (jar-verified: tests/fixtures/document/forms/name-suffix.puml), not unsupported.
     assert status(toy_parser, "@startumlx\nanything\n@enduml\n") == REJECT
     assert status(toy_parser, "@startprojectfoo\ntask abc\n@end\n") == ACCEPT
+
+
+@pytest.mark.parametrize("start", ["@STARTUML", "@Startuml", "@ſtartuml", "@\u017ftartsprites"])
+def test_lark_start_word_itself_is_case_sensitive(toy_parser, start: str) -> None:
+    # StartUtils.isStartDirective uses regionMatches(.., "start", ..) without ignoreCase
+    # (utils/StartUtils.java:51-63); jar fixture document/forms/start-uppercase.puml: no block.
+    assert status(toy_parser, f"{start}\n{LIST_LINE}\n@enduml\n") == REJECT
+
+
+@pytest.mark.parametrize("word", ["\u017fprites", "spr\u0130tes", "\u212anown"])
+def test_lark_keyword_folds_ascii_case_only(toy_parser, word: str) -> None:
+    # DiagramType.check lowercases A-Z only (core/DiagramType.java:220-232): `ſprites` is no
+    # keyword, so the block is PSystemUnsupported and any body is accepted.
+    assert status(toy_parser, f"@start{word}\nanything at all\n@end\n") == ACCEPT
+
+
+def test_w3c_start_word_is_exact_and_keyword_is_ascii_folded(toy_resolved) -> None:
+    text = w3c.emit_w3c(toy_resolved)
+    assert 'START_UML ::= [#x20#x9]* ("@" | "\\") "start" [Uu] [Mm] [Ll] [^#xD#xA]*' in text
 
 
 def test_lark_project_block_uses_the_gantt_model(toy_parser) -> None:
@@ -170,7 +189,7 @@ def test_textmate_block_ends_at_any_end_directive(toy_resolved) -> None:
     grammar = textmate.emit_textmate(toy_resolved)
     blocks = [p for p in grammar["patterns"] if "begin" in p]
     assert {b["end"] for b in blocks} == {r"^\s*([@\\]end[A-Za-z0-9]*)"}
-    assert [b["begin"] for b in blocks][3] == r"(?i)^\s*([@\\]startsprites)"
+    assert [b["begin"] for b in blocks][3] == r"^\s*([@\\]start(?i:sprites))"
     assert "diagram_project" in grammar["repository"]
 
 
