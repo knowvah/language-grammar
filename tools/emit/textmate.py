@@ -195,7 +195,7 @@ def _group_rules(models: list[ResolvedModel], repository: dict[str, Rule]) -> li
 def _block(keyword: str) -> Rule:
     return {
         "name": BLOCK_SCOPE,
-        "begin": f"(?i)^\\s*({START_DIRECTIVE}{keyword})(?![A-Za-z0-9])",
+        "begin": f"(?i)^\\s*({START_DIRECTIVE}{keyword})",
         "beginCaptures": {"1": {"name": START_SCOPE}},
         "end": f"^\\s*({END_DIRECTIVE}[A-Za-z0-9]*)",
         "endCaptures": {"1": {"name": END_SCOPE}},
