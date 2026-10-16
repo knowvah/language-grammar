@@ -1,0 +1,357 @@
+{
+  "cases": [
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 14,
+        "text": "else"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/g_ab/gabeme-89-tiko230.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 4,
+        "text": "(\"Basic routine\")"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/j_ok/jokaxi-40-toko207.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 4,
+        "text": "        :Charged;"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/k_ed/kedozi-45-begu156.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 2,
+        "text": "class CopierTXTEnCSV <<(F, zzgrey)>>"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/k_ep/kepife-84-jigi755.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 903,
+        "text": "$version$"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/k_ip/kipive-74-lele070.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 3,
+        "text": "port t"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/k_ok/kokote-73-revo347.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 3,
+        "text": "@enduml"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/k_om/komoso-43-xika169.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 11,
+        "text": "  |S2|"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/n_ak/nakavu-98-pela661.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 7,
+        "text": "else (no)"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/p_ej/pejima-95-nuxu520.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 4,
+        "text": "class ErrorManager"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/r_ub/rubife-18-nege510.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 3,
+        "text": "foo"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/s_ir/sirimo-08-ceju218.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 2,
+        "text": "foo"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/t_um/tumepe-28-zuma441.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 7,
+        "text": "}"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/v_ed/veducu-71-tika634.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 3,
+        "text": "|swinlane1|"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/v_el/velodu-59-sada437.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 43,
+        "text": "portin scene as Focus.scene"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/v_ev/vevatu-41-xixo630.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 1005,
+        "text": "!endwhile"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "timeout",
+      "lark": false,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/v_ip/vipixe-71-rika369.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 14,
+        "text": "else"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/x_or/xoreni-54-xoro817.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 11,
+        "text": "class MessageJson2Xml {"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/z_al/zalulo-78-voma912.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 3,
+        "text": "state myExit <<exitpoint>>"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "dbhum/z_in/zinano-86-zeke427.puml",
+      "status": "reject"
+    },
+    {
+      "block": 1,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 11,
+        "text": "  |S2|"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "input/tmp1.puml",
+      "status": "reject"
+    }
+  ],
+  "corpus": "pdiff",
+  "family": "unclassified",
+  "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
+  "totals": {
+    "blocks": 116,
+    "diagram_mismatch": 0,
+    "disagree": 18,
+    "fa": 0,
+    "fr": 0,
+    "oracle_accepted": 7,
+    "raw_fr": 0,
+    "timeout": 2
+  }
+}

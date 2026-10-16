@@ -128,3 +128,15 @@ def test_excluded_label_names_the_reason():
     command = coverage.Command(0, "a.B", "single", "excluded", "why")
     text = coverage.render({"F": [command]}, {"F": "D"})
     assert "| 0 | B | single | excluded (why) |" in text
+
+
+def test_partial_label_names_the_reason():
+    command = coverage.Command(0, "a.B", "unreachable", "partial", "opaque-no-regex-field")
+    text = coverage.render({"F": [command]}, {"F": "D"})
+    assert "| 0 | B | unreachable | partial (opaque-no-regex-field) |" in text
+
+
+def test_modeled_label_stays_plain_even_with_a_note():
+    command = coverage.Command(0, "a.B", "unreachable", "modeled", "natural-sentence")
+    text = coverage.render({"F": [command]}, {"F": "D"})
+    assert "| 0 | B | unreachable | modeled |" in text

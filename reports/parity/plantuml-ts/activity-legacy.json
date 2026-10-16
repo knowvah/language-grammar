@@ -7,11 +7,25 @@
       "interp": true,
       "interp_diagram": "SEQUENCE",
       "kind": "diagram_mismatch",
-      "lark": null,
+      "lark": true,
       "note": "diagram mismatch from the sequence family: SequenceDiagram.isIncomplete (no participant) makes PSystemCommandFactory return null, so the jar's legacy activity factory accepts it",
       "oracle": true,
       "oracle_type": "ACTIVITY",
       "path": "class/bizese-04-sulu767.puml",
+      "status": "ok"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": null,
+      "interp": true,
+      "interp_diagram": "ACTIVITY",
+      "kind": "timeout",
+      "lark": false,
+      "note": "Lark timeout only: parses and agrees in 27 s CPU (baseline grammar 19 s); no interpreter/Lark disagreement",
+      "oracle": true,
+      "oracle_type": "ACTIVITY",
+      "path": "class/pudixe-16-deki169.puml",
       "status": "ok"
     }
   ],
@@ -26,6 +40,6 @@
     "fr": 0,
     "oracle_accepted": 119,
     "raw_fr": 0,
-    "timeout": 0
+    "timeout": 1
   }
 }

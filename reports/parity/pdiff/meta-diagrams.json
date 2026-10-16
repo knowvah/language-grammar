@@ -1,41 +1,12 @@
 {
-  "cases": [
-    {
-      "block": 0,
-      "class": "bug",
-      "first_failure": null,
-      "interp": true,
-      "interp_diagram": "REGEX",
-      "kind": "disagree",
-      "lark": false,
-      "note": "Lark only: the emitted END_REGEX terminal requires `@endregex` (tools/emit/lark.py _blocks), upstream closes the block at any `@end...` line (`@enderegex`); queued",
-      "oracle": true,
-      "oracle_type": "REGEX",
-      "path": "dbhum/m_ez/mezupo-66-nemu390.puml",
-      "status": "ok"
-    },
-    {
-      "block": 0,
-      "class": "bug",
-      "first_failure": null,
-      "interp": true,
-      "interp_diagram": "REGEX",
-      "kind": "disagree",
-      "lark": false,
-      "note": "Lark only: the emitted END_REGEX terminal requires `@endregex` (tools/emit/lark.py _blocks), upstream closes the block at any `@end...` line (`@enderegex`); queued",
-      "oracle": true,
-      "oracle_type": "REGEX",
-      "path": "dbhum/m_ov/movuda-30-bife663.puml",
-      "status": "ok"
-    }
-  ],
+  "cases": [],
   "corpus": "pdiff",
   "family": "meta-diagrams",
   "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
   "totals": {
     "blocks": 113,
     "diagram_mismatch": 0,
-    "disagree": 2,
+    "disagree": 0,
     "fa": 0,
     "fr": 0,
     "oracle_accepted": 110,

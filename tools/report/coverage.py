@@ -138,7 +138,8 @@ def _count(commands: Iterable[Command]) -> Counter[str]:
 
 
 def _label(c: Command) -> str:
-    return f"{EXCLUDED} ({c.note})" if c.status == EXCLUDED else c.status
+    """Status, with the reason for ``excluded`` and ``partial`` commands."""
+    return f"{c.status} ({c.note})" if c.note and c.status in (EXCLUDED, PARTIAL) else c.status
 
 
 def render(matrix: Mapping[str, Sequence[Command]], diagrams: Mapping[str, str]) -> str:

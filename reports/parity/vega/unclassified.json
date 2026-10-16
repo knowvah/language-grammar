@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "block": 0,
+      "class": "unclassified",
+      "first_failure": {
+        "line": 6,
+        "text": "@enduml"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "sub/subfile.puml",
+      "status": "reject"
+    }
+  ],
+  "corpus": "vega",
+  "family": "unclassified",
+  "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
+  "totals": {
+    "blocks": 1,
+    "diagram_mismatch": 0,
+    "disagree": 1,
+    "fa": 0,
+    "fr": 0,
+    "oracle_accepted": 0,
+    "raw_fr": 0,
+    "timeout": 0
+  }
+}

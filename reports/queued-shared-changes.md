@@ -970,3 +970,45 @@ verdicts are unchanged (accepted).
 Upstream opens a block for ANY `@start<word>` and answers PSystemUnsupported for words with no factory (`@startjcckit`, `@startchronology`; model/document.yaml header, PSystemBuilder.java:283-284); the interpreter accepts them (`test_unknown_start_keyword_is_unsupported_and_accepted`). Lark/W3C/TextMate emit blocks only for `start_map` keywords, so the 7 pdiff `@startjcckit` files (e.g. dbhum/g_ib/gibapi-78-fote878.puml) are interp/oracle accept, Lark reject. Fix sketch in `tools/emit/lark.py:_blocks`: one `block_other` whose START terminal is `[ \t]*[@\\]start(?!(?:<keywords>)(?![A-Za-z0-9]))[^\r\n]*`, body `(_BODY_LINE? _NL)*`, END `END_BLOCK`. Not done here: it needs the same lookahead in W3C and TextMate and changes the block set that tests enumerate.
 - emitters / Lark Java regex semantics → done (consolidation A follow-up): `tools.emit.lark_regex.lark_pattern(pattern, ci)` runs strip_anchors → `tools.model.java_regex.to_python(ci, end_anchor=LINE_END)` → line_bounded → prefer_longest → greedy. ASCII classes, line-bounded `.`, explicit `[aA]` case folding (no Lark `/i` on regex terminals; ci literals become regex terminals), `$`/`\Z` a line-end lookahead `(?=\r|\n|\Z)`. `cp_text` backslash-escapes ASCII punctuation because Lark's `eval_escaping` decodes `\x5c`/`\x5d`/`\x2d`; `linebound` learned `\UHHHHHHHH`. W3C and TextMate keep the model's Java text (their own engines), documented in their module docstrings.
 - emitters / Lark has no block for a start word that names no factory → done for Lark and W3C (consolidation A follow-up): `block_other` (`tools/emit/keywords.py:other_start_pattern` excludes every `start_map` key as a prefix, like findStartTypes; any body; shared END). W3C states the block and the overlap (no lookahead). TextMate unchanged. pdiff unclassified Lark disagreements 25 -> 18 (the 7 `@startjcckit` files).
+
+## Release 0.1.0 resolution index
+
+One line per `##` entry above, in file order, checked against `git log` and the code on
+2026-10-15 (T35). Every entry is applied or superseded; none is rejected and none is open.
+
+1. style: emitters should skip `join` entries that need a joined line -> applied (063d6ee, `tools/emit/skip.py`).
+2. common: a pushed body left open at the end of the block must reject (`require_pop`) -> applied (063d6ee; schema, interpreter, guide).
+3. common: entry-level `reject` for execute-time errors -> applied (063d6ee).
+4. style: `scan_join` needs an early exit -> applied (494ce06).
+5. orchestrator: resolution of the entries above -> record only; entries 1-4 confirmed against 063d6ee and 494ce06.
+6. sequence: `test_common` assumes every command factory is still probed -> applied (c4d3b1d, `common_top` helper in the common tests).
+7. class: `test_style` reads every context of the CLASS top model -> applied (f6a687e, T18 commit).
+8. sequence: emitters must emit only the top model of each factory -> applied (952def8, `tools/emit/tops.py`).
+9. sequence: Lark terminals match across line ends -> applied (952def8 line-bounded terminals; Java `.`/`$` semantics added in 5f5659e).
+10. activity3: Lark/W3C treat `set` like `push` -> applied (ff32a99, `tools/emit/flow.py` closed forms).
+11. activity3: Lark multiline `end` line cannot be indented -> applied (ff32a99).
+12. state: Lark requires the pop line of a context entered without `require_pop` -> applied (ff32a99, unclosed push is a spine-only tail).
+13. state: Lark multiline `end` line cannot be indented (second case) -> superseded by entry 11 (ff32a99).
+14. state: Lark alternation where a later alternative extends an earlier one -> applied (ff32a99, `prefer_longest` in every alternation).
+15. description: Lark rejects trailing whitespace after a multiline or pushing first line -> applied (ff32a99).
+16. activity3: `test_document` pins `gen-activity-diagram3` as the top model -> applied (7e3b8bb, orchestrator, T21a commit: id-agnostic check).
+17. timing: Lark `set`/`push` into a context without `pop` as the last line -> applied (ff32a99, newline-led blocks).
+18. gantt: `JAVA_INT_RANGE` lists the shortest alternative first -> applied (b7ec47e, orchestrator, T24 commit; `model/diagrams/common.yaml` is longest first).
+19. gantt: final-state check "a separator or group needs a real task" -> applied as the `gives`/`needs` diagram flags (5834289; used in b7ec47e/daeb1e0 gantt models). Additive schema keys, not STOP 3.
+20. mindmap-wbs: match `SingleLineCommand2(doTrim=false)` commands against the untrimmed line -> applied as `trim: false` (5834289: schema, extractor, translator, regenerated `extracted/` and `model/generated/`). Additive.
+21. activity3: interpreter-only state heads double Lark derivations -> applied as `emit: false` (5834289; adopted in 2d87408, 1c6e469, 5e0c187). Additive.
+22. contract: resolution of gantt final-state flags and mindmap-wbs untrimmed matching -> record only; entries 19-21 confirmed against 5834289.
+23. gantt: second use for the `gives`/`needs` flags ("No starting date for the project") -> applied (daeb1e0, `needs: project_start` in `model/diagrams/gantt-sentences.yaml`).
+24. salt: translate Java `.` as a class that excludes line terminals -> applied (3dd680c, `tools/model/java_regex.py`; model text stays Java).
+25. json: no `{{ ... }}` gluing in joins of non-command factories -> applied (3dd680c, `tools/interp/factories.py:NON_COMMAND_FACTORIES`).
+26. meta-diagrams: Lark/TextMate emit no `@startsprites` block -> applied (f9f17d4, `tools/emit/keywords.py` derives blocks from `start_map`; also adds `@startproject`).
+27. meta-diagrams: Lark `END_<kw>` requires `@end<kw>`, upstream any `@end...` closes -> applied (f9f17d4, shared `END_BLOCK`).
+28. single-line: preprocessor-truncated `@startuml` with no end line accepted by embedded-welcome -> applied as the `empty_needs_end` top-level key (3dd680c). Additive.
+29. single-line: `KEYWORD_FAMILY` lacks crash, dot, ditaa, math, latex -> applied (3dd680c, `tools/report/families.py`).
+30. single-line: Lark collapses `\\"` in regex terminals -> applied (f9f17d4, quotes rendered as `\x22`; 5f5659e escapes punctuation in `cp_text`).
+31. meta-diagrams: TextMate `CommandNope` matches the empty string -> applied (f9f17d4, `textmate_regex.can_match_empty`).
+32. board-files-git: same `{{` unit gluing in `FilesDiagramFactory` joins -> applied with entry 25 (3dd680c).
+33. single-line: `test_description` pins embedded-license / embedded-version -> applied (8203389, T34 commit generalized the test to factories).
+34. emitters: Lark has no block for a start word that names no factory -> applied for Lark and W3C (5f5659e, `block_other`). TextMate has no such block; documented in `docs/grammar-guide.md`.
+
+Resolved bullets that follow entry 34's text and have no heading of their own: T32 `linebound.py` positive classes with `\n`/`\r` -> applied (f9f17d4); emitters Lark Java regex semantics -> applied (5f5659e, `tools.emit.lark_regex.lark_pattern`).

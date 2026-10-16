@@ -487,4 +487,134 @@ this filter runs once per block. A block whose non-blank lines are all consumed 
 empty body. With `raw=False` (default; L2 input is already preprocessed) the preproc
 model is ignored.
 
+## Generated grammars (`dist/`)
+
+`python -m tools.emit.build` writes three files from `model/`; two runs produce
+byte-identical output.
+
+| File | Notation | Consumers |
+|---|---|---|
+| `dist/plantuml.lark` | Lark (Earley, `lexer="dynamic_complete"`, `regex=True`) | `tools.validate.lark_parse.build_parser` |
+| `dist/plantuml.ebnf` | W3C XML 1.0 section 6, with `*_lossy` productions marking approximations | railroad-diagram tools |
+| `dist/plantuml.tmLanguage.json` | TextMate (`source.plantuml`), Oniguruma and PCRE | editors |
+
+Known limits, all intended and tested:
+
+* **Case-insensitive literals in W3C.** W3C EBNF has no case-insensitive string, so a `ci`
+  literal is written as one class per cased letter: `class` becomes `[Cc][Ll][Aa][Ss][Ss]`
+  (the header comment of `dist/plantuml.ebnf` says so). The Lark emitter does the same for
+  its terminals and does not use Lark's `i` flag.
+* **Java regex text.** The W3C and TextMate emitters keep the model's Java regex text; only
+  the interpreter and Lark translate it with `tools.model.java_regex` (see "Regex
+  semantics"). W3C records what it cannot express as `*_lossy` productions
+  (large repeats, lookaround, Unicode properties, word boundaries).
+* **Lark start keywords have no word boundary.** `START_*` terminals are plain prefixes, so
+  `@startumlx` is rejected by Lark although upstream accepts it (`findStartTypes` takes a
+  key that is a prefix of the keyword). Words that match no `start_map` key are framed by
+  `block_other`.
+* **Emitters drop `reject`, `emit: false`, `gives`/`needs` and `trim`.** They are wider than
+  the interpreter for bodies that rely on those keys; this is the main source of Lark-only
+  disagreements.
+* **TextMate scope coverage is limited.** Generated class and sequence rules carry no
+  scopes (the generated models give regexes no `scope`), so those bodies are matched but
+  not highlighted. TextMate also has no "unknown start word" block: `@startjcckit` and
+  similar words are not framed.
+* **Conditional factory `PSystemPathFactory`.** `eggs/PSystemPathFactory.java` (a
+  `PSystemSingleLineFactory` accepting `path <alnum>`, `:49`) is added to the factory list
+  only when the security profile is `INSECURE` (`PSystemBuilder.java:178-179`). The profile
+  comes from `SecurityProfile.init()` (`security/SecurityProfile.java:114-134`): TeaVM
+  builds are always `INSECURE`; otherwise the system property or environment variable
+  `PLANTUML_SECURITY_PROFILE` (read by `SecurityUtils.getenv`,
+  `security/SecurityUtils.java:202-212`) selects it, with `INSECURE` or its alias
+  `UNSECURE`, and the default is `LEGACY`. The list is built once, when the `PSystemBuilder`
+  singleton is created (`PSystemBuilder.java:128`, `:132-201`), so the profile in force at
+  that moment decides for the whole JVM. The extractor and the oracle run the stock jar
+  under the default profile, so the factory is absent from `extracted/`, from the `uml`
+  `start_map` and from the models, and the jar rejects `@startuml` / `path abc` / `@enduml`
+  (`tests/fixtures/single-line/neg/path.puml`). Supporting the `INSECURE` profile would
+  need a single-line diagram model for `PSystemPathFactory`, listed in `start_map` right
+  after `PSystemRIPFactory`; the grammars here describe the default profile only.
+
+## Regenerating after an upstream bump
+
+Everything under `extracted/`, `model/generated/` and `dist/` is a function of the pinned
+upstream commit and the hand-written `model/`. To move the pin to a new commit `NEWSHA`
+(prerequisites: the stock jar built from that commit, a PlantUML checkout containing it,
+and the three corpora; see "Troubleshooting" for the environment variables):
+
+1. **Pin.** Edit `upstream-pin.json` (`sha`, `version`) and `PIN_SHA` in `tools/config.py`
+   (the default jar name and the provenance reader use it), then point `PLANTUML_JAR` at the new jar. The oracle cache key
+   contains the sha, so cached verdicts of the old pin are not reused.
+2. **Extract.** `uv run python -m tools.extract.build` compiles the Java harness against
+   the jar; `uv run python -m tools.extract.run` rewrites `extracted/*.json` (one file per
+   factory in `PSystemBuilder` order). Review `git diff extracted/`: added, removed or
+   reordered commands show up here first.
+3. **Translate.** `uv run python -m tools.translate.run` rewrites `model/generated/*.yaml`
+   and reads the source text at `NEWSHA` through `git -C $PLANTUML_SRC show` for the
+   `provenance.file:line` values. Never edit these files by hand.
+4. **Check.** `uv run python -m tools.model.load --check model/` fails on a hand-written
+   override, insert or provenance citation whose key no longer matches an entry; fix the
+   family model that names it. Then `uv run pytest` (corpus tests re-resolve every
+   citation in `model/` against the checkout; line numbers in hand-written models are
+   re-verified by hand where they moved) and `uv run python -m tools.report.coverage` to
+   regenerate `docs/coverage.md`: a command listed as `missing` is new upstream and needs a
+   model rule or a documented exclusion in `reports/classify/*.yaml`.
+5. **Build.** `uv run python -m tools.emit.build` rewrites `dist/`; run it twice and
+   compare `shasum -a 256 dist/*`, and run `npm test` for the TextMate proof.
+6. **Parity.** `uv run python -m tools.validate.parity --corpus all --lark sample
+   --workers 4`, then `uv run python -m tools.validate.parity merge --corpus all` and
+   `uv run python -m tools.report.semantic_gaps`. Targets (D5): FR 0 on vega and
+   plantuml-ts, at most 2% on pdiff with every case classified. Classify new FR/FA cases
+   in `reports/classify/<family>.yaml` (`class: bug|semantic`, `note`, `cite`).
+
 ## Troubleshooting
+
+### An upstream bump breaks the extractor
+
+*Detection.* `uv run python -m tools.extract.build` fails with `javac` errors (a class,
+field or constructor the harness reads was renamed), or `tools.extract.run` throws a
+reflection error naming the field (the harness reads fields of the command base classes
+by declaring class, see the `Extract.java` header). A quieter form: a factory or command
+vanishes from `extracted/` or moves to `unreachable`, which `git diff extracted/` and
+`docs/coverage.md` (a `missing` row) show.
+
+*Mitigation.* Keep the old pin until the harness is fixed; the old `extracted/` and
+`model/generated/` stay valid for it. Fix the field reads in `tools/extract/*.java` (cite
+the new `file:line`), rerun extract and translate, and add a case to `tests/extract` or
+`tests/translate`. Do not patch `model/generated/` by hand to hide the change.
+
+### Lark is slow or ambiguous (Earley)
+
+*Detection.* Parsing a block takes seconds to minutes, or `parity --lark` reports
+`timeout` cases; Lark and the interpreter disagree on a block (`disagree`). The cost grows
+with the number of alternatives the Earley parser keeps alive: a catch-all inside a pushed
+context that never pops, or a model that includes `common` (style) in every factory.
+
+*Mitigation.* Give every pushed body a real end or `pop`; mark interpreter-only helper
+heads `emit: false` so emitters drop them; use `require_pop` instead of optional closers.
+Build the parser once with `tools.validate.lark_parse.build_parser` and reuse it. Raise the
+parity budget with `--timeout` (default 10 s) to separate a slow parse from a wrong one:
+the interpreter, not Lark, is the reference for accept/reject. The `parity` run is
+CPU-heavy; on a shared machine use `--workers 4` and never run two corpus-wide jobs at
+once. The 0.1.0 timeouts and disagreements are listed per corpus in
+`reports/parity-<corpus>.md` and explained in `docs/semantic-gaps.md` (44 of 62 timeouts finish
+within 60 s and agree with the jar).
+
+### The jar or the corpora are missing
+
+*Detection.* Parity, oracle and corpus-marked tests exit with code 2 and
+`<ENV> not found at <path>; set <ENV>` (`tools.config.ConfigError`).
+
+| Variable | Default | Needed for |
+|---|---|---|
+| `PLANTUML_JAR` | `~/git/knowvah/plantuml-ts/oracle/dist/stock/plantuml-stock-<sha>.jar` | extract, oracle, parity, corpus tests |
+| `PLANTUML_SRC` | `~/git/plantuml` | translate (provenance), citation tests |
+| `CORPUS_VEGA` | `$PLANTUML_SRC/src/test/resources/vega` | parity `vega` |
+| `CORPUS_PLANTUML_TS` | `~/git/knowvah/plantuml-ts/tests/corpus` | parity `plantuml-ts` |
+| `CORPUS_PDIFF` | `~/git/pdiff` | parity `pdiff` |
+
+*Mitigation.* Set the variables. Without them, everything that does not need the jar still
+works: `uv run pytest -m "not corpus"`, `load --check`, `emit.build`, `npm test` and
+`tools.report.coverage`. The jar is never committed; build or fetch the stock jar for the
+pinned sha. Upstream line numbers cite the pin, so the checkout must contain it
+(`git -C $PLANTUML_SRC cat-file -t 97a5992`); its `HEAD` may be a different branch.
