@@ -31,8 +31,9 @@ at most one keyword terminal matches a start line. A word no key covers (``@star
 ``@startchronology``) opens a block all the same and upstream answers ``PSystemUnsupported``
 (PSystemBuilder.java:283-284, PSystemErrorUtils.java:58-59), which is accepted. Lark gets one
 more block, ``block_other``, whose start terminal excludes every keyword prefix
-(``other_start_pattern``) and whose body is any lines. W3C cannot express the exclusion (no
-lookahead) and says so in its comments.
+(``other_start_pattern``) and whose body is any lines; TextMate gets the same block, last, with
+only comments and the preprocessor inside. Both use ``uncovered_lookahead``. W3C cannot express
+the exclusion (no lookahead) and says so in its comments.
 """
 
 from __future__ import annotations
@@ -64,13 +65,18 @@ START_DIRECTIVE = r"[@\\]start"
 END_DIRECTIVE = r"[@\\]end"
 
 
+def uncovered_lookahead(keywords: Iterable[str]) -> str:
+    """Lookahead, placed after ``start``, that refuses every keyword prefix (each listed once)."""
+    covered = "|".join(sorted(set(keywords), key=lambda k: (-len(k), k)))
+    return f"(?!(?:{covered}))"
+
+
 def other_start_pattern(keywords: Iterable[str]) -> str:
     """Regex body of the start line of a word that no keyword is a prefix of.
 
     At least one character must follow ``start`` (``StartUtils.isStartDirective``).
     """
-    covered = "|".join(sorted(set(keywords), key=lambda k: (-len(k), k)))
-    return rf"[ \t]*{START_DIRECTIVE}(?!(?:{covered}))[^\r\n]+"
+    return rf"[ \t]*{START_DIRECTIVE}{uncovered_lookahead(keywords)}[^\r\n]+"
 
 
 def start_keyword(diagram: str) -> str:

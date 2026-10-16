@@ -125,10 +125,21 @@ def test_one_block_per_start_keyword(grammar: dict[str, Any]) -> None:
     assert [b["begin"] for b in blocks] == [
         "(?i)^\\s*([@\\\\]startuml)",
         "(?i)^\\s*([@\\\\]startsalt)",
+        "(?i)^\\s*([@\\\\]start(?!(?:salt|uml))(?=[^\\r\\n])\\S*)",
     ]
     assert blocks[0]["patterns"][-1] == {"include": "#diagram_uml"}
     assert {"include": "#comments"} in blocks[1]["patterns"]
     assert {"include": "#preprocessor"} in blocks[1]["patterns"]
+
+
+def test_unknown_start_word_block_is_last_and_opaque(grammar: dict[str, Any]) -> None:
+    # PSystemUnsupported (PSystemBuilder.java:283-284): any body is accepted, so only comments
+    # and the preprocessor are scoped inside; the block itself keeps the diagram scopes.
+    other = [p for p in grammar["patterns"] if "begin" in p][-1]
+    assert other["patterns"] == [{"include": "#comments"}, {"include": "#preprocessor"}]
+    assert other["name"] == "meta.diagram.plantuml"
+    assert other["beginCaptures"] == {"1": {"name": "keyword.control.start.plantuml"}}
+    assert other["end"] == "^\\s*([@\\\\]end[A-Za-z0-9]*)"
 
 
 def test_uml_union_deduplicates_identical_rules(grammar: dict[str, Any]) -> None:

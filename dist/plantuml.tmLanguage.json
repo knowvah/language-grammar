@@ -765,6 +765,29 @@
           "include": "#diagram_math"
         }
       ]
+    },
+    {
+      "name": "meta.diagram.plantuml",
+      "begin": "(?i)^\\s*([@\\\\]start(?!(?:packetdiag|mindmap|project|sprites|creole|nwdiag|board|chart|crash|ditaa|files|gantt|latex|regex|chen|ebnf|flow|json|math|salt|wire|yaml|bpm|def|dot|git|hcl|uml|wbs))(?=[^\\r\\n])\\S*)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.start.plantuml"
+        }
+      },
+      "end": "^\\s*([@\\\\]end[A-Za-z0-9]*)",
+      "endCaptures": {
+        "1": {
+          "name": "keyword.control.end.plantuml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#preprocessor"
+        }
+      ]
     }
   ],
   "repository": {
