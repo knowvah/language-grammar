@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import re
 
+import regex
+from lark.utils import get_regexp_width
+
 from tools.model import Part
 
 SCOPE_SUFFIX = "plantuml"
@@ -106,3 +109,17 @@ def flatten(part: Part) -> tuple[str, Captures]:
 def flatten_alternatives(parts: list[Part]) -> tuple[str, Captures]:
     """``(regex, captures)`` for the ordered alternation of several Parts."""
     return flatten({"alt": parts})
+
+
+def can_match_empty(pattern: str) -> bool:
+    """Whether ``pattern`` can match the empty string (static minimum width of zero).
+
+    Lookarounds count as zero width, so a pattern whose only width comes from a lookbehind
+    (``(?=--).*(?<=--)``) is conservatively reported as nullable. A pattern the width
+    analysis cannot parse is reported as nullable too: dropping a rule is safe, emitting a
+    rule that can match nothing is not.
+    """
+    try:
+        return bool(get_regexp_width(pattern)[0] == 0)
+    except (ValueError, OverflowError, re.error, regex.error):
+        return True

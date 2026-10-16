@@ -25,6 +25,14 @@ Mapping from model entries:
   PCRE2); absent ``ci`` stays case-sensitive.
 * ``pop`` entries are ordinary ``match`` rules outside a pushed context.
 
+A rule whose ``match`` / ``begin`` regex can match the empty string is NOT emitted
+(``textmate_regex.can_match_empty``). Oniguruma finds a zero-length match at column 0 of every
+line, earlier than any real rule, and vscode-textmate takes it: common's ``CommandNope``
+(``[\\s\\xa0]*``) otherwise left every body line of every command factory unscoped. TextMate
+has no assertion that forces a non-empty match, so such rules (blank-line rules and
+catch-alls like ``.*``) lose their scope; ``end`` regexes (``$``) are zero-width on purpose
+and are not filtered.
+
 Context transitions are only approximated (TextMate has no frame replacement):
 
 * ``set`` nests the target's region inside the current one exactly like ``push``, so after
@@ -53,10 +61,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from tools.emit.lark import MAIN_CONTEXT, start_keyword
+from tools.emit.keywords import END_DIRECTIVE, START_DIRECTIVE, group_by_keyword
+from tools.emit.lark import MAIN_CONTEXT
 from tools.emit.skip import skipped
-from tools.emit.textmate_regex import Captures, flatten, flatten_alternatives
-from tools.emit.tops import emitted_diagrams
+from tools.emit.textmate_regex import Captures, can_match_empty, flatten, flatten_alternatives
 from tools.model import Entry, ModelLoadError, ResolvedModel, ResolvedModels
 from tools.model.load import load_dir
 from tools.model.resolve import resolve
@@ -122,7 +130,9 @@ class _Rules:
         for entry in entries:
             if "command" not in entry or skipped(entry) or (skip_pop and entry.get("pop")):
                 continue
-            rules.append(self.entry_rule(entry))
+            rule = self.entry_rule(entry)
+            if not can_match_empty(rule.get("match") or rule["begin"]):
+                rules.append(rule)
         return rules
 
     def entry_rule(self, entry: Entry) -> Rule:
@@ -181,9 +191,9 @@ def _group_rules(models: list[ResolvedModel], repository: dict[str, Rule]) -> li
 def _block(keyword: str) -> Rule:
     return {
         "name": BLOCK_SCOPE,
-        "begin": f"(?i)^\\s*(@start{keyword})(?![A-Za-z0-9])",
+        "begin": f"(?i)^\\s*({START_DIRECTIVE}{keyword})(?![A-Za-z0-9])",
         "beginCaptures": {"1": {"name": START_SCOPE}},
-        "end": f"(?i)^\\s*(@end{keyword})(?![A-Za-z0-9])",
+        "end": f"^\\s*({END_DIRECTIVE}[A-Za-z0-9]*)",
         "endCaptures": {"1": {"name": END_SCOPE}},
         "patterns": [
             {"include": "#" + COMMENTS},
@@ -193,20 +203,13 @@ def _block(keyword: str) -> Rule:
     }
 
 
-def _by_keyword(resolved: ResolvedModels) -> dict[str, list[ResolvedModel]]:
-    groups: dict[str, list[ResolvedModel]] = {}
-    for model in emitted_diagrams(resolved):
-        groups.setdefault(start_keyword(str(model.diagram)), []).append(model)
-    return groups
-
-
 def emit_textmate(resolved: ResolvedModels) -> dict[str, Any]:
     """The tmLanguage grammar for the diagram-layer models in ``resolved``."""
     repository: dict[str, Rule] = {
         COMMENTS: COMMENT_RULES,
         PREPROCESSOR: PREPROCESSOR_RULES,
     }
-    groups = _by_keyword(resolved)
+    groups = group_by_keyword(resolved)
     blocks = []
     for keyword, models in groups.items():
         repository[f"diagram_{keyword}"] = {"patterns": _group_rules(models, repository)}

@@ -123,8 +123,8 @@ def test_top_level_metadata(grammar: dict[str, Any]) -> None:
 def test_one_block_per_start_keyword(grammar: dict[str, Any]) -> None:
     blocks = [p for p in grammar["patterns"] if "begin" in p]
     assert [b["begin"] for b in blocks] == [
-        "(?i)^\\s*(@startuml)(?![A-Za-z0-9])",
-        "(?i)^\\s*(@startsalt)(?![A-Za-z0-9])",
+        "(?i)^\\s*([@\\\\]startuml)(?![A-Za-z0-9])",
+        "(?i)^\\s*([@\\\\]startsalt)(?![A-Za-z0-9])",
     ]
     assert blocks[0]["patterns"][-1] == {"include": "#diagram_uml"}
     assert {"include": "#comments"} in blocks[1]["patterns"]
@@ -295,3 +295,84 @@ def test_main_reports_model_errors(tmp_path: Path, capsys: pytest.CaptureFixture
     assert code == textmate.EXIT_ERROR
     assert "x.yaml" in capsys.readouterr().err
     assert not (tmp_path / "o.json").exists()
+
+
+# --- rules that can match the empty string are never emitted ---------------------------
+
+
+@pytest.mark.parametrize(
+    ("pattern", "empty"),
+    [
+        (r"[\s\xa0]*", True),
+        (r"(?i:[\s\xa0]*)(?i:\}?)", True),
+        (r".*", True),
+        (r"^$", True),
+        (r"(?=a)", True),
+        (r"a*b?", True),
+        (r"a+", False),
+        (r"(?i:class)\s+\w+", False),
+        (r"\s*\}", False),
+        (r"(?<=", True),  # unparsable: dropping is safe
+    ],
+)
+def test_can_match_empty(pattern: str, empty: bool) -> None:
+    assert tmr.can_match_empty(pattern) is empty
+
+
+def test_nullable_match_and_begin_rules_are_not_emitted() -> None:
+    nope = cmd({"regex": "[\\s\\xa0]*"})
+    catch_all = cmd({"regex": ".*"})
+    nullable_region = cmd({"regex": "\\s*"}, kind="multiline", end={"literal": "x", "ci": False})
+    real = cmd({"seq": [lit("class", ci=True), {"regex": "\\s+\\w+"}]})
+    model = model_with({"main": [nope, real, catch_all, nullable_region]})
+    rules = textmate._Rules(model, {}).context_rules(model.contexts["main"], skip_pop=False)
+    assert rules == [{"match": "(?i:class)\\s+\\w+"}]
+
+
+def test_pop_end_of_a_pushed_context_may_stay_zero_width() -> None:
+    entry = cmd(lit("package"), push="body")
+    body = [cmd(lit("item")), cmd({"regex": "(?=\\})"}, pop=True)]
+    model = model_with({"main": [entry], "body": body})
+    (rule,) = textmate._Rules(model, {}).context_rules(model.contexts["main"], skip_pop=False)
+    assert rule["begin"] == "package"
+    assert rule["end"] == "(?:(?=\\}))"
+
+
+PROBES = ["", "   ", "class Foo", "  note left of A : text", 'rule = "a" ; (* c *)', "a--b == c"]
+
+
+def test_real_model_has_no_rule_that_matches_the_empty_string() -> None:
+    import regex
+
+    grammar = textmate.emit_textmate(resolve(load_dir(ROOT / "model")))
+    patterns: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("match", "begin") and isinstance(value, str):
+                    patterns.append(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(grammar["repository"])
+    assert len(patterns) > 1000
+    empty = []
+    for pattern in patterns:
+        try:
+            compiled = regex.compile(pattern)
+        except regex.error:
+            continue  # Oniguruma-only syntax; compile portability is checked elsewhere
+        for line in PROBES:
+            for start in range(len(line) + 1):
+                found = compiled.search(line, start)
+                if found and found.end() == found.start():
+                    empty.append(pattern)
+                    break
+            else:
+                continue
+            break
+    assert empty == []

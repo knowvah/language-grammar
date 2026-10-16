@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import regex
 from lark import Lark
 
 from tools.emit import lark_regex as lr
@@ -58,3 +59,35 @@ def test_history_suffix_is_reachable_when_more_text_follows(text: str) -> None:
 def test_regex_terminal_keeps_unrelated_alternation_order() -> None:
     literal, _ = lr.regex_terminal("(foo|bar)")
     assert literal == "/(foo|bar)/"
+
+
+QUOTE_CASES = [
+    (r'"(?:[^"\\]|\\")*"', ['"ab"', '"a\\"b"'], ['"a\\b"', '"ab', '"a\\\\"']),
+    (r'\\"', ['\\"'], ['"', '\\\\"']),
+    (r"a\"b", ['a"b'], ['a\\"b']),
+    (r'[\\"]x', ["\\x", '"x'], ["ax"]),
+    (r'\\\\"', ['\\\\"'], ['\\"']),
+    (r"a/b", ["a/b"], ["ab"]),
+]
+
+
+@pytest.mark.parametrize(("pattern", "matching", "rejected"), QUOTE_CASES)
+def test_terminal_keeps_backslash_and_quote_through_lark_escape_evaluation(
+    pattern: str, matching: list[str], rejected: list[str]
+) -> None:
+    """Lark's ``eval_escaping`` turned ``\\\\"`` into ``\\"``; the lexer must see the original."""
+    literal, _ = lr.regex_terminal(pattern)
+    parser = Lark(f"start: {literal}\n", lexer="dynamic_complete", regex=True)
+    compiled = regex.compile(parser.terminals[0].pattern.to_regexp())
+    assert [bool(compiled.fullmatch(t)) for t in matching] == [True] * len(matching)
+    assert [bool(compiled.fullmatch(t)) for t in rejected] == [False] * len(rejected)
+    original = regex.compile(pattern)
+    assert [bool(original.fullmatch(t)) for t in matching + rejected] == [True] * len(matching) + [
+        False
+    ] * len(rejected)
+
+
+def test_render_literal_body_quotes_become_hex_escapes() -> None:
+    assert lr.render_literal_body(r'\\"') == r"\\\x22"
+    assert lr.render_literal_body(r"\"") == r"\x22"
+    assert lr.render_literal_body('a"/\n\\') == "a\\x22\\/\\n\\"

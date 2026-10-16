@@ -13,8 +13,11 @@ Output shape (line based, whitespace significant; newlines are never ``%ignore``
 Only ``layer: diagram`` models contribute, and of those only the top model of each
 ``factory`` (``tools.emit.tops``; document and preproc layers are future work);
 rules and terminals are emitted in model-id / context / entry order, so output is
-deterministic. UML sub-types all sit under ``@startuml``; other diagram types use
-``@start<lowercase diagram>`` (see ``start_keyword``).
+deterministic. A model is offered under every start keyword whose ``start_map`` factory list
+names its ``factory`` (``@startuml`` and ``@startsprites`` for the sprite list, ``@startgantt``
+and ``@startproject`` for gantt); a model without a match falls back to the diagram-type
+keyword. Every block ends at ONE shared ``END_BLOCK`` terminal that matches any ``@end...`` /
+``\\end...`` line, like upstream's ``StartUtils.isEndDirective`` (see ``tools.emit.keywords``).
 
 Every ``opt``, ``alt`` and compound ``star``/``plus`` body (and every nullable regex) is
 hoisted into a shared ``_``-prefixed rule (``_o_N: x |``, ``_a_N: a | b``, ``_g_N: ...``)
@@ -90,6 +93,16 @@ from tools.emit.flow_rules import MAIN_CONTEXT as MAIN_CONTEXT
 from tools.emit.flow_rules import FlowBuilder
 from tools.emit.flow_rules import Names as _Names
 from tools.emit.flow_rules import snake as snake
+from tools.emit.keywords import (
+    END_DIRECTIVE,
+    START_DIRECTIVE,
+    UML_KEYWORD,
+    document_start_map,
+    start_keywords,
+)
+from tools.emit.keywords import (
+    start_keyword as start_keyword,
+)
 from tools.emit.lark_regex import (
     EOL_LOOKAHEAD as EOL_LOOKAHEAD,
 )
@@ -109,22 +122,6 @@ from tools.emit.lark_regex import (
 from tools.emit.tops import emitted_diagrams
 from tools.model import Entry, Part, ResolvedModel, ResolvedModels
 
-UML_KEYWORD = "uml"
-UML_TYPES = frozenset(
-    {
-        "SEQUENCE",
-        "STATE",
-        "CLASS",
-        "OBJECT",
-        "ACTIVITY",
-        "DESCRIPTION",
-        "COMPOSITE",
-        "TIMING",
-        "HELP",
-        "SPRITES",
-    }
-)
-KEYWORD_OVERRIDES = {"CHEN_EER": "chen", "DEFINITION": "def", "PACKET": "packetdiag"}
 KIND_MULTILINE = "multiline"
 KIND_BRACKET = "multiline-bracket"
 HOIST_OPT = "_o"
@@ -141,13 +138,6 @@ PRELUDE = (
     r"_COMMENT: /[ \t]*'[^\r\n]*/",
     r"_LONG_COMMENT: /[ \t]*\/'[\s\S]*?'\/[ \t]*(?=\r?\n|\Z)/",
 )
-
-
-def start_keyword(diagram: str) -> str:
-    """The lowercase ``@start<kw>`` keyword used by a diagram type."""
-    if diagram in UML_TYPES:
-        return UML_KEYWORD
-    return KEYWORD_OVERRIDES.get(diagram, diagram.lower())
 
 
 def lark_string(text: str, ci: bool) -> str:
@@ -296,16 +286,19 @@ class _Diagram(FlowBuilder):
         return self.terminals[key]
 
 
+END_TERMINAL = "END_BLOCK"
+
+
 def _blocks(groups: dict[str, list[str]]) -> tuple[list[str], list[str]]:
-    """Block rules and START/END terminals, one per @start keyword."""
+    """Block rules and START/END terminals: one START per keyword, one shared END."""
     rules: list[str] = []
-    terminals: list[str] = []
+    terminals: list[str] = [rf"{END_TERMINAL}: /[ \t]*{END_DIRECTIVE}[^\r\n]*/"]
     for keyword, bodies in groups.items():
         upper = keyword.upper()
         body = f" ({' | '.join(bodies)})" if bodies else ""
-        rules.append(f"block_{keyword}: START_{upper} _NL{body} END_{upper}")
-        terminals.append(f"START_{upper}: /[ \\t]*@start{keyword}(?![A-Za-z0-9])[^\\r\\n]*/i")
-        terminals.append(f"END_{upper}: /[ \\t]*@end{keyword}[^\\r\\n]*/i")
+        rules.append(f"block_{keyword}: START_{upper} _NL{body} {END_TERMINAL}")
+        start = rf"/[ \t]*{START_DIRECTIVE}{keyword}(?![A-Za-z0-9])[^\r\n]*/i"
+        terminals.append(f"START_{upper}: {start}")
     return rules, terminals
 
 
@@ -313,6 +306,7 @@ def emit_lark(resolved: ResolvedModels) -> str:
     """Render the Lark grammar text for the diagram-layer models in ``resolved``."""
     names = _Names()
     diagrams = [_Diagram(m, names) for m in emitted_diagrams(resolved)]
+    start_map = document_start_map(resolved)
     rules: list[str] = []
     terminals: list[str] = []
     groups: dict[str, list[str]] = {}
@@ -320,8 +314,8 @@ def emit_lark(resolved: ResolvedModels) -> str:
         diagram_rules, diagram_terminals = diagram.render()
         rules.extend(diagram_rules)
         terminals.extend(diagram_terminals)
-        keyword = start_keyword(str(diagram.model.diagram))
-        groups.setdefault(keyword, []).append(diagram.body)
+        for keyword in start_keywords(diagram.model, start_map):
+            groups.setdefault(keyword, []).append(diagram.body)
     if not groups:
         groups[UML_KEYWORD] = []
     block_rules, block_terminals = _blocks(groups)

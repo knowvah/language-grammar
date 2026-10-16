@@ -32,6 +32,10 @@ Conventions (repeated in the generated header):
   become unordered ``|``. ``require_pop`` backtracking (the interpreter retries the pushing
   line when a body never closes) is not expressible.
 
+Framing: blocks follow ``tools.emit.keywords`` (a model sits under every start keyword whose
+``start_map`` factory list names its factory) and end at one shared ``END_BLOCK`` that accepts
+any ``@end...`` / ``\\end...`` line.
+
 ``emit_w3c`` returns the text (the ``tools.emit.build`` contract); ``emit_w3c_with_lossiness``
 also returns the lossiness entries. The header states the total and a per-construct tally.
 
@@ -46,12 +50,15 @@ from collections import Counter
 
 from tools.emit import flow
 from tools.emit.flow_rules import FlowBuilder
+from tools.emit.keywords import (
+    UML_KEYWORD,
+    document_start_map,
+    start_keywords,
+)
 from tools.emit.lark import (
     KIND_BRACKET,
     KIND_MULTILINE,
-    UML_KEYWORD,
     _Names,
-    start_keyword,
 )
 from tools.emit.tops import emitted_diagrams
 from tools.emit.w3c_regex import translate_regex
@@ -121,19 +128,24 @@ class _Diagram(FlowBuilder):
         return translate_regex(part["regex"], self.sink, self.rule, bool(part.get("ci")))
 
 
+END_RULE = "END_BLOCK"
+DIRECTIVE_CHARS = '("@" | "\\")'
+
+
 def _blocks(groups: dict[str, list[str]]) -> list[str]:
+    """Block productions: one START per keyword and one END shared by all (any ``@end...``)."""
     lines: list[str] = []
     for keyword, bodies in groups.items():
         upper = keyword.upper()
         joined = " | ".join(bodies)
         body = f" ({joined})" if len(bodies) > 1 else f" {joined}" if bodies else ""
-        lines.append(f"block_{keyword} ::= START_{upper} NL{body} END_{upper}")
+        lines.append(f"block_{keyword} ::= START_{upper} NL{body} {END_RULE}")
     for keyword in groups:
-        upper = keyword.upper()
-        start = ci_literal(f"@start{keyword}").text
-        end = ci_literal(f"@end{keyword}").text
-        lines.append(f"START_{upper} ::= {INLINE_WS}* {start} {NOT_EOL}*")
-        lines.append(f"END_{upper} ::= {INLINE_WS}* {end} {NOT_EOL}*")
+        start = ci_literal(f"start{keyword}").text
+        lines.append(
+            f"START_{keyword.upper()} ::= {INLINE_WS}* {DIRECTIVE_CHARS} {start} {NOT_EOL}*"
+        )
+    lines.append(f'{END_RULE} ::= {INLINE_WS}* {DIRECTIVE_CHARS} "end" {NOT_EOL}*')
     return lines
 
 
@@ -145,7 +157,8 @@ def _header(lossy: list[Lossy]) -> str:
         "Notation: W3C XML 1.0 section 6 (renders at https://rr.red-dove.com/ui).",
         "Case-insensitive literals: each cased letter is a class, class = [Cc][Ll][Aa][Ss][Ss].",
         "Character shorthands use ASCII semantics; ^ and $ anchors are dropped.",
-        "Start/end lines allow trailing text after the keyword (lookahead not expressible).",
+        "Start lines allow trailing text after the keyword (lookahead not expressible).",
+        "A block ends at ANY end directive (@end..., \\end...), like StartUtils.isEndDirective.",
         f"Lossiness: {len(lossy)} constructs approximated ({detail}).",
         "Each is a *_lossy production carrying its original regex in a comment.",
     ]
@@ -158,10 +171,12 @@ def emit_w3c_with_lossiness(resolved: ResolvedModels) -> tuple[str, list[Lossy]]
     sink = Sink(names)
     rules: list[str] = []
     groups: dict[str, list[str]] = {}
+    start_map = document_start_map(resolved)
     for model in emitted_diagrams(resolved):
         diagram = _Diagram(model, names, sink)
         rules.extend(diagram.render())
-        groups.setdefault(start_keyword(str(model.diagram)), []).append(diagram.body)
+        for keyword in start_keywords(model, start_map):
+            groups.setdefault(keyword, []).append(diagram.body)
     if not groups:
         groups[UML_KEYWORD] = []
     top = [

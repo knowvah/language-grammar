@@ -248,7 +248,7 @@ def test_output_is_valid_w3c_with_every_name_defined(
     prods = check_w3c_syntax(lossy_result[0])
     assert prods["plantuml"] == "NL* block (NL+ block)* NL*"
     assert prods["block"] == "block_uml | block_salt"
-    assert prods["block_uml"] == "START_UML NL class_body END_UML"
+    assert prods["block_uml"] == "START_UML NL class_body END_BLOCK"
     assert prods["NL"] == "#xD? #xA"
 
 
@@ -296,7 +296,7 @@ def test_structure_push_pop_and_multiline(lossy_result: tuple[str, list[w3c.Loss
     )
     assert prods["class_line_command"].count("\n") == 0
     assert prods["class_line_command"].split(" | ")[0] == "class_command_ident"
-    assert prods["START_SALT"].startswith('[#x20#x9]* "@" [Ss] [Tt] [Aa] [Rr] [Tt] [Ss]')
+    assert prods["START_SALT"].startswith('[#x20#x9]* ("@" | "\\") [Ss] [Tt] [Aa] [Rr] [Tt] [Ss]')
 
 
 def test_emit_w3c_returns_text_only(lossy_result: tuple[str, list[w3c.Lossy]]) -> None:
@@ -312,7 +312,7 @@ def test_deterministic() -> None:
 def test_no_diagram_models_yields_default_uml_block(tmp_path: Path) -> None:
     text, lossy = w3c.emit_w3c_with_lossiness(resolve(load_dir(tmp_path)))
     prods = check_w3c_syntax(text)
-    assert prods["block_uml"] == "START_UML NL END_UML"
+    assert prods["block_uml"] == "START_UML NL END_BLOCK"
     assert lossy == []
     assert "Lossiness: 0 constructs approximated (none)." in text
 

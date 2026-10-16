@@ -85,30 +85,57 @@ def _longest_first(found: re.Match[str]) -> str:
     return found["open"] + "|".join(alternatives) + ")"
 
 
-def _escape_slashes(pattern: str) -> str:
+QUOTE_ESCAPE = r"\x22"
+
+
+def render_literal_body(pattern: str) -> str:
+    r"""``pattern`` escaped for the body of a Lark ``/.../`` regex literal.
+
+    Lark runs ``eval_escaping`` on the body (lark/load_grammar.py): it doubles every ``\\``
+    and then replaces ``\"`` by ``"`` anywhere, so the regex ``\\"`` (escaped backslash,
+    quote) reached the lexer as ``\"`` (an escaped quote) and never matched a backslash.
+    A quote written as ``\x22`` is untouched by that replacement (``literal_eval`` turns it
+    into the character afterwards), so every ``"`` -- bare or escaped -- is emitted that way,
+    and ``/`` as ``\/``. A newline is written ``\n``.
+    """
     out: list[str] = []
     chars = iter(pattern)
     for char in chars:
         if char == "\\":
-            out.append(char + next(chars, ""))
+            following = next(chars, "")
+            out.append(QUOTE_ESCAPE if following == '"' else char + following)
         elif char == "/":
             out.append("\\/")
+        elif char == '"':
+            out.append(QUOTE_ESCAPE)
         else:
             out.append(char.replace("\n", "\\n"))
     return "".join(out)
+
+
+def lark_pattern(pattern: str) -> str:
+    """THE model-regex -> Lark-terminal-regex translation (one place for every rewrite).
+
+    Every regex that reaches a Lark terminal, and every static width check on one
+    (``regex_terminal``, ``nullable_part``), goes through this function; a change of regex
+    dialect (e.g. translating Java syntax) belongs at its head. Stages, in order: drop the
+    ``^`` / ``$`` anchors, bound the pattern to one line, put alternatives that extend an
+    earlier one first, make lazy quantifiers greedy.
+    """
+    return greedy(prefer_longest(line_bounded(strip_anchors(pattern))))
 
 
 def regex_terminal(pattern: str, ci: bool = False, eol: bool = False) -> tuple[str, bool]:
     """Lark ``/.../`` literal for ``pattern`` (flag ``i`` when ``ci``) and whether it
     needed the nullable guard. With ``eol`` the match must end at the line end (the
     stripped ``$``), so lazy and greedy quantifiers both reach it."""
-    pattern = greedy(prefer_longest(line_bounded(strip_anchors(pattern))))
+    pattern = lark_pattern(pattern)
     nullable = get_regexp_width(pattern)[0] == 0
     if eol:
         pattern = f"(?:{pattern}){EOL_LOOKAHEAD}"
     if nullable:
         pattern = NULLABLE_PREFIX + pattern + ")"
-    return "/" + _escape_slashes(pattern) + "/" + ("i" if ci else ""), nullable
+    return "/" + render_literal_body(pattern) + "/" + ("i" if ci else ""), nullable
 
 
 def nullable_part(part: Part) -> bool:
@@ -122,7 +149,7 @@ def nullable_part(part: Part) -> bool:
     if "plus" in part:
         return nullable_part(part["plus"])
     if "regex" in part:
-        return get_regexp_width(strip_anchors(part["regex"]))[0] == 0
+        return get_regexp_width(lark_pattern(part["regex"]))[0] == 0
     return False
 
 

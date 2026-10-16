@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -147,3 +148,57 @@ def test_toy_terminals_stay_inside_their_line(
     parser: Lark, lines: tuple[str, ...], status: str
 ) -> None:
     assert verdict(parser, *lines) == status
+
+
+# --- positive classes that name a line end ---------------------------------------------
+
+NEVER = r"[^\x00-\U0010ffff]"
+PROBE_LINE_ENDS = "a\rb\nc\x0bd\x0ce\t f-"
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        (r"[\t-\r]", r"[\x09\x0b-\x0c]"),
+        (r"[\n]", NEVER),
+        (r"[\r\n]", NEVER),
+        ("[\n\r]", NEVER),
+        (r"[\x0a]", NEVER),
+        (r"[\x0d]", NEVER),
+        (r"[\u000a\u000d]", NEVER),
+        (r"[\x{a}x]", "[x]"),
+        (r"[a\nb]", "[ab]"),
+        (r"[\t-\x0c]", r"[\x09\x0b-\x0c]"),
+        (r"[\x0b-\x0c]", r"[\x0b-\x0c]"),
+        (r"[\x00-\x7f]", r"[\x00-\x09\x0b-\x0c\x0e-\x7f]"),
+        (r"[ -\x{10FFFF}]", r"[ -\x{10FFFF}]"),
+        (r"[\0-\xff]", r"[\x00-\x09\x0b-\x0c\x0e-\xff]"),
+        (r"[\t\v\f]", r"[\t\v\f]"),
+        (r"[\]\n]", r"[\]]"),
+        (r"[]\n]", r"[\]]"),
+        (r"[a\-\n]", r"[a\-]"),
+        (r"[\n-\r]", r"[\x0b-\x0c]"),
+        (r"[\t-\r\p{L}]", r"[\x09\x0b-\x0c\p{L}]"),
+        (r"[\t-\r[:alpha:]]", r"[\x09\x0b-\x0c[:alpha:]]"),
+        (r"[a-]", "[a-]"),
+        (r"[\n-]", "[-]"),
+    ],
+)
+def test_positive_class_loses_line_ends(pattern: str, expected: str) -> None:
+    assert line_bounded(pattern) == expected
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [r"[\t-\r]+", r"[\x00-\x7f]*", r"[\n\r]|x", "[\n\r a]+", r"[\0-\xff]+", r"[\t-\r\p{L}]+"],
+)
+def test_rewritten_class_matches_the_same_text_without_line_ends(pattern: str) -> None:
+    bounded = regex.compile(line_bounded(pattern))
+    original = regex.compile(pattern)
+    for start in range(len(PROBE_LINE_ENDS)):
+        got = bounded.match(PROBE_LINE_ENDS, start)
+        if got:
+            assert "\r" not in got.group(0) and "\n" not in got.group(0)
+        want = original.match(PROBE_LINE_ENDS, start)
+        if want and not re.search(r"[\r\n]", want.group(0)):
+            assert got is not None and got.group(0) == want.group(0)
