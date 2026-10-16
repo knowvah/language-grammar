@@ -1,0 +1,24 @@
+# Classifications for the `board-files-git` family (T31). Upstream pin 97a5992; `cite`
+# paths are relative to the upstream repository root.
+#
+# Interpreter: FR 0 / FA 0 on every corpus (pdiff 16 blocks: 4 board, 8 files, 4 git;
+# vega and plantuml-ts have no `@startboard`, `@startfiles` or `@startgit` block).
+# Before T31 the slices were the same (0/0): the opaque files/git models and the plain
+# generated board model accepted every corpus block, which the jar also accepts.
+#
+# Lark (tools/validate/lark_parse.py, grammar built from this model): pdiff `--lark all`
+# 16 blocks, 0 disagreements, 0 timeouts. A first build timed out on two blocks
+# (dbhum/n_oj/nojeru-23-tavo641.puml, a theme-expanded files block, 71 s; the 2290-line
+# git block dbhum/f_ig/figagi-40-mila236.puml, 15 s): every files line `set` the body
+# context, which Lark renders as nested blocks with overlapping alternatives. The files
+# model now gives emitters a flat, transition-free line view (0.4 s) and git's line
+# rules lost their nullable pieces (6 s).
+#
+# Lark is wider than the interpreter by design on the family fixtures
+# (tests/fixtures/board-files-git): rejects, `join` entries and `require_pop` retries are
+# interpreter-only (tools/emit/skip.py, tools/emit/flow.py), so the files style-stream
+# crash and the common block's execute errors (`scale 0`, bad `<style>` bodies) are
+# accepted by Lark; CommandBoardPlus is a catch-all, so with no rule order Lark may also
+# read a common line (`title t`) as an activity before a release; and CommonCommands'
+# CommandNope makes an empty body parse. None of these occurs in the corpora.
+cases: {}

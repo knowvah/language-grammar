@@ -1,0 +1,10 @@
+schema_version: 1
+id: w3c_salt
+layer: diagram
+diagram: SALT
+contexts:
+  main:
+    - command: CommandBack
+      provenance: {class: toy.CommandBack}
+      kind: single
+      parts: {regex: "(\\w)\\1"}

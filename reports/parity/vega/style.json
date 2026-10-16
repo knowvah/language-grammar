@@ -1,0 +1,51 @@
+{
+  "cases": [
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 21,
+        "text": "Project starts the 1st of january 2021"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "fr",
+      "lark": null,
+      "note": "FR at block line 21 ('Project starts the 1st of january 2021'), outside the <style> region(s) at lines 3-18; owned by the gantt family",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt6.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "bug",
+      "first_failure": {
+        "line": 21,
+        "text": "Project starts the 1st of january 2021"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "raw_fr",
+      "lark": null,
+      "note": "FR at block line 21 ('Project starts the 1st of january 2021'), outside the <style> region(s) at lines 3-18; owned by the gantt family",
+      "oracle": true,
+      "oracle_type": "GANTT",
+      "path": "xgantt/gantt6.puml",
+      "status": "reject"
+    }
+  ],
+  "corpus": "vega",
+  "family": "style",
+  "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
+  "totals": {
+    "blocks": 15,
+    "diagram_mismatch": 0,
+    "disagree": 0,
+    "fa": 0,
+    "fr": 1,
+    "oracle_accepted": 15,
+    "raw_fr": 1,
+    "timeout": 0
+  }
+}

@@ -1,0 +1,40 @@
+# Classifications for the `nwdiag-packet` family (T27). Upstream pin 97a5992; `cite`
+# paths are relative to the upstream repository root. FR is 0 on every corpus (vega 62
+# blocks, pdiff 68, plantuml-ts has no nwdiag or packetdiag block). The one remaining false
+# accept needs the set of element names per group, which a line grammar does not keep.
+#
+# Lark (tools/validate/lark_parse.py, grammar built from this model): vega `--lark all`
+# 62 blocks, 0 timeouts, 2 disagreements (below); pdiff `--lark all` 68 blocks, 0
+# disagreements, 0 timeouts. The two vega blocks are the packetdiag final check: the
+# interpreter rejects them through a `require_pop` retry and a `reject`, which the emitters
+# cannot render (a `require_pop` push has no open-tail form, rejects and joiner-only joins
+# are dropped; tools/emit/flow.py), so Lark accepts. Interpreter and jar agree on both.
+cases:
+  # `group { app; db; }` then `group { router; db; }`: "Element already in another group."
+  pdiff:dbhum/t_or/torazi-09-gago377.puml#0:
+    class: semantic
+    note: "element already in some group: addElement checks the names of every group (gap/nw-element-in-two-groups)"
+    cite: src/main/java/net/sourceforge/plantuml/nwdiag/NwDiagram.java:240-242
+  # `4-3: ...` alone: a first row of width 0 divides by zero in adjustIndicators.
+  vega:packet/R07.02-Range_Error2.puml#0:
+    class: semantic
+    note: "Lark only: zero-width first row (final check) is a require_pop retry plus a reject, which emitters cannot render; interpreter and jar reject"
+    cite: src/main/java/net/sourceforge/plantuml/packetdiag/PacketDiagram.java:387-405
+  # `* A [len = 0]` alone: same final check.
+  vega:packet/R11.01-len_0.puml#0:
+    class: semantic
+    note: "Lark only: zero-width first row (final check) is a require_pop retry plus a reject, which emitters cannot render; interpreter and jar reject"
+    cite: src/main/java/net/sourceforge/plantuml/packetdiag/PacketDiagram.java:387-405
+exclusions:
+  CommandGroup: >-
+    modeled by the per-state head entries NwGroupOpenAtRoot (main, push nw_group),
+    NwGroupOpenInNetwork (nw_network, push nw_group) and NwGroupInGroup (nw_group, reject)
+    in model/diagrams/nwdiag-packet-nwdiag.yaml, which cite NwDiagram.openGroup
+    (NwDiagram.java:122-131) and CommandGroup.java:53-66; the generated entry is removed
+    because one entry cannot act differently per state
+  CommandNetwork: >-
+    modeled by the per-state head entries NwNetworkOpenAtRoot (main, push nw_network),
+    NwNetworkInNetwork (nw_network, reject) and NwNetworkInGroup (nw_group, reject) in
+    model/diagrams/nwdiag-packet-nwdiag.yaml, which cite NwDiagram.openNetwork
+    (NwDiagram.java:133-147) and CommandNetwork.java:53-66; the generated entry is removed
+    because one entry cannot act differently per state

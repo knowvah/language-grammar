@@ -1,0 +1,51 @@
+{
+  "cases": [
+    {
+      "block": 0,
+      "class": "semantic",
+      "first_failure": {
+        "line": 2,
+        "text": "4-3: error - ArithmeticException: / by zero"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "Lark only: zero-width first row (final check) is a require_pop retry plus a reject, which emitters cannot render; interpreter and jar reject",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "packet/R07.02-Range_Error2.puml",
+      "status": "reject"
+    },
+    {
+      "block": 0,
+      "class": "semantic",
+      "first_failure": {
+        "line": 2,
+        "text": "* A [len = 0]"
+      },
+      "interp": false,
+      "interp_diagram": null,
+      "kind": "disagree",
+      "lark": true,
+      "note": "Lark only: zero-width first row (final check) is a require_pop retry plus a reject, which emitters cannot render; interpreter and jar reject",
+      "oracle": false,
+      "oracle_type": null,
+      "path": "packet/R11.01-len_0.puml",
+      "status": "reject"
+    }
+  ],
+  "corpus": "vega",
+  "family": "nwdiag-packet",
+  "pin": "97a5992201a7b1bc5d4063a81da609fe7387fede",
+  "totals": {
+    "blocks": 62,
+    "diagram_mismatch": 0,
+    "disagree": 2,
+    "fa": 0,
+    "fr": 0,
+    "oracle_accepted": 59,
+    "raw_fr": 0,
+    "timeout": 0
+  }
+}

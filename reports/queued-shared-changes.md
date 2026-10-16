@@ -1,0 +1,1014 @@
+## style: emitters should skip `join` entries that need a joined line (non-blocking)
+
+`model/diagrams/style.yaml` refines `CommandStyleMultilinesCSS` into a `join` whose parts
+match the whole `<style>` block (U+E100 = line joiner), plus `CommandStyleMultilinesCSSReject`
+(also a join with U+E100). Emitters approximate `join` by a single line, and no single line
+contains U+E100, so both entries are dead in every emitter. They are still emitted into
+every diagram model that includes `style` (via `common`), ~2 KB of lookaround-heavy regex per
+model. Measured on a scratch tree where all 52 top models include `style`: W3C lossiness
+1,233 -> 9,375 constructs (lookaround 145 -> 7,199), `plantuml.lark` 431 KB -> 904 KB. Those
+numbers also include the duplicated probe models. Parse time is NOT affected by the dead
+joins: removing them from a scratch copy left Lark time unchanged. An earlier 3-5x Lark
+slowdown came from a `single` + `push` emitter entry and was fixed in style.yaml by making
+it a `multiline` with `end`. This entry is a size/readability improvement only. Verdicts
+did not change (vega/style `disagree=0` either way).
+
+Proposed filter (textmate.py; identical one-line guard in `lark.py` and `w3c.py` where
+command entries are turned into line rules):
+
+```diff
+--- a/tools/emit/textmate.py
++++ b/tools/emit/textmate.py
+@@ def context_rules(self, entries: list[Entry], skip_pop: bool) -> list[Rule]:
+         for entry in entries:
+             if "command" not in entry or (skip_pop and entry.get("pop")):
+                 continue
++            if JOIN_KEY in entry and "" in json.dumps(entry["parts"], ensure_ascii=False):
++                continue  # needs >1 joined line: can never match one line
+             rules.append(self.entry_rule(entry))
+```
+
+Failing cases: none (size and speed only). Reproduce: copy `model/` with a wrapper
+`include: [<top>, style]` per factory, `python -m tools.emit.build --model-dir <copy>`.
+## common: a pushed body left open at the end of the block must reject (`require_pop`)
+
+Upstream a multiline command whose end never comes is skipped (`isMultilineCommandOk`
+returns null, `command/PSystemCommandFactory.java:268-288` at 97a5992) and the start line
+then fails. A model that enters a body as a context (`push`) to validate its lines (skinparam
+`{ }` bodies, sprite data) has no way to say that the body must be closed: `Interpreter._run`
+accepts a block whose context stack is still open. Proposal: an entry key `require_pop: true`
+(only with `push`), meaning "if the block ends while this pushed context is still on the
+stack, the attempt fails at the pushing line". Lark already requires the pop line.
+
+Proposed diff (schema, guide, interpreter; emitters unchanged):
+
+```diff
+--- a/model/schema.json   ($defs.command.properties and $defs.command_patch.properties)
++        "require_pop": {"const": true},
+--- a/model/schema.json   ($defs.command.allOf)
++        {"if": {"required": ["require_pop"]}, "then": {"required": ["push"]}},
+--- a/tools/interp/rules.py
+ class Rule:
+     ...
+     action: str
+     target: str
++    require_pop: bool = False
+ def build_rule(entry: Entry) -> Rule:
+-    return Rule(entry["command"], entry["kind"], start, end, max_lines, action, target)
++    return Rule(entry["command"], entry["kind"], start, end, max_lines, action, target,
++                bool(entry.get("require_pop")))
+--- a/tools/interp/engine.py   (_run)
+-        stack = [context]
++        stack = [context]
++        opened: list[int | None] = [None]   # body index of a require_pop push, per frame
+         i = 0
+         while i < len(body):
+             step = self._candidate(model, stack[-1], body, i, deadline)
+             if step is not None:
++                if step[0].action == ACTION_PUSH:
++                    opened.append(i if step[0].require_pop else None)
++                elif step[0].action == ACTION_POP and len(opened) > 1:
++                    opened.pop()
+                 _apply(stack, step[0])
+                 i = step[1]
+             ...
+-        return None
++        pending = [k for k in opened if k is not None]
++        return pending[0] if pending else None
+--- a/docs/grammar-guide.md   (Keys table)
++| `require_pop: true` | entry | With `push`: ending the block inside the pushed context fails the attempt at the pushing line (upstream skips a multiline command that never completes). | none (added) |
+```
+
+Then `model/diagrams/common.yaml` adds `require_pop: true` to the `CommandSkinParamMultilines`
+override, the `CommandFactorySprite_1` override, the inserted `CommandFactorySpriteGray16`,
+and the nested `CommandSkinParamBodyOpen`.
+
+Failing cases it fixes (strict xfail in tests/families/test_common.py, `tests/fixtures/common/gap/`):
+`skinparam-block-unterminated`, `skinparam-block-unterminated-eob`, `sprite-multi-unterminated`,
+`sprite-multi-unterminated-eob`, `sprite-multi-packed-unterminated`.
+
+## common: entry-level `reject` for execute-time errors
+
+`CommandExecutionResult.error` (`PSystemCommandFactory.java:179-187`) makes the factory fail
+on a line its regex matched (`scale 0`, `page 0x1`, `!pragma graphviz_dot`, sprite level 5).
+The only way to model it today is to narrow `parts` so the line no longer matches, but then
+the line falls through to later commands. A family catch-all after the common block takes it.
+For example, salt's `CommandAnything` accepts `page 0x1`, where upstream `CommandPage`
+matched and failed. Proposal: an entry key `reject: true` (kind `single` only) that makes
+the attempt fail at that line when the entry is selected. The narrowed common overrides
+would then become an `insert_before` reject entry plus the unnarrowed generated rule.
+
+```diff
+--- a/model/schema.json   ($defs.command.properties)
++        "reject": {"const": true},
+--- a/model/schema.json   ($defs.command.allOf)
++        {"if": {"required": ["reject"]}, "then": {"properties": {"kind": {"const": "single"}},
++         "allOf": [{"not": {"required": ["push"]}}, {"not": {"required": ["set"]}}, {"not": {"required": ["pop"]}}]}},
+--- a/tools/interp/rules.py
++    reject: bool = False          # build_rule: bool(entry.get("reject"))
+--- a/tools/interp/engine.py   (_run)
+             if step is not None:
++                if step[0].reject:
++                    return i
+--- a/docs/grammar-guide.md   (Keys table)
++| `reject: true` | entry | `single` only: when selected, the attempt fails at this line (mirrors `CommandExecutionResult.error`). Emitters drop the entry. | none (added) |
+```
+
+Emitters (lark, w3c, textmate) must skip `reject` entries (Lark: drop the alternative).
+
+Failing case it fixes: `tests/fixtures/common/gap/salt-page-zero.puml` (and the same class of
+fall-through for every narrowed common command in any factory whose own commands follow the
+common block with a catch-all).
+
+## style: scan_join needs an early exit; uncapped joins are cubic (blocking for performance)
+
+Mechanism: `tools/interp/scan.py` `scan_join` re-joins `body[i:j]` and full-matches for every
+k up to `max_lines`, with no first-line check and no early exit (`Rule.advance` calls it on
+every line that reaches the rule). `style.yaml` refines `CommandStyleMultilinesCSS` into a
+join with `max_lines: 100000`, because upstream's CommandMultilines2 has no line cap. For
+every body line before the style commands in `main`, the scan then joins up to the rest of
+the block: O(n^2) per line, O(n^3) per block. Reported by T16:
+`plantuml-ts:sequence/zudize-61-vomi445.puml#0` / `pdiff:dbhum/z_ud/zudize-61-vomi445.puml#0`
+(45,512 lines, no `<style>`) times out after 60 s with a probe `include: [gen-sequence-diagram,
+style]`, and takes 0.68 s without `style`. Parity timeouts: plantuml-ts 1 -> 3, pdiff 1 -> 2
+(FR/FA unchanged).
+
+Fix: stop once the joined prefix (plus the joiner the next unit would add) cannot extend to a
+match, using `regex` partial matching. The result is the same: if no extension of
+`joined + JOINER` can match, no larger k can.
+
+```diff
+--- a/tools/interp/scan.py
++++ b/tools/interp/scan.py
+@@ class Deadline:
+         try:
+             return pattern.fullmatch(text, timeout=remaining) is not None
+         except TimeoutError as exc:
+             raise BlockTimeout from exc
++
++    def prefix(self, pattern: Any, text: str) -> bool:
++        """Could ``text`` still be extended to a full match (``regex`` partial matching)?"""
++        remaining = self._limit - self._clock()
++        if remaining <= 0:
++            raise BlockTimeout
++        try:
++            return pattern.fullmatch(text, partial=True, timeout=remaining) is not None
++        except TimeoutError as exc:
++            raise BlockTimeout from exc
+@@ def scan_join(
+         joined = JOINER.join(line.trimmed for line in body[i:j])
+         if deadline.fullmatch(start, joined):
+             return j
++        if not deadline.prefix(start, joined + JOINER):
++            return None
+     return None
+```
+
+Validated by monkeypatching it in scratch: the repro finishes `ok` in 0.7 s. All 89 style
+fixture blocks, 88 oracle probes and 469 corpus style regions keep their verdicts, and
+`tests/interp tests/families tests/layers tests/validate` stays 1071 passed / 18 xfailed both
+with and without the patch. Needs a unit test in tests/interp (for example, a join with
+`max_lines: 100000` over a 5,000-line body that never starts with its first literal returns
+`None` in under 1 s).
+
+## orchestrator: resolution of the entries above (2026-10-15)
+- style / emitters skip joiner-only `join` entries → done in 063d6ee (`tools/emit/skip.py`).
+- common / `require_pop` → done in 063d6ee (backtracks like `PSystemCommandFactory.java:236-240`).
+- common / entry-level `reject` → done in 063d6ee.
+- style / `scan_join` early exit → done in 494ce06.
+
+## sequence: test_common assumes every command factory is still probed (blocking the full suite)
+
+Once a family model (`sequence`, T17; `class`, T18) includes `common`, `with_probes` no longer
+creates `probe-gen-sequence-diagram` / `probe-gen-class-diagram`, so three T16 tests fail:
+`test_each_reject_directly_follows_its_narrowed_rule` and
+`test_refined_entries_are_marked_refined_by_common` (KeyError on the probe id) and
+`test_every_command_factory_with_the_common_block_gets_a_probe` (Sequence/Class no longer probed).
+Fix: look up the top model of the factory (probe or family model) instead of the probe id.
+Validated on a scratch copy with `model/diagrams/sequence*.yaml` in place: 327 passed, 12 xfailed.
+
+```diff
+@@ -49,6 +49,7 @@
+ DIAGRAM_LAYER = "diagram"
+ PROBE_PREFIX = "probe-"
+ UPSTREAM_PREFIX = "src/main/java/net/sourceforge/plantuml/"
++SEQUENCE_FACTORY = "SequenceDiagramFactory"
+ HEADER = re.compile(r"^' (?P<key>common|factory|gap): (?P<value>.+)$")
+ START = re.compile(r"^@start(?P<keyword>\w+)", re.MULTILINE)
+ 
+@@ -194,7 +195,7 @@
+ ) -> None:
+     errors = raw_models[ERRORS_ID].insert_after
+     assert all(e.get("reject") for entries in errors.values() for e in entries)
+-    main = [e["command"] for e in models[PROBE_PREFIX + "gen-sequence-diagram"].contexts[MAIN]]
++    main = [e["command"] for e in common_top(models, SEQUENCE_FACTORY).contexts[MAIN]]
+     for key, entries in errors.items():
+         (entry,) = entries
+         assert main[main.index(key) + 1] == entry["command"], key
+@@ -208,12 +209,22 @@
+     ]
+ 
+ 
+-def test_every_command_factory_with_the_common_block_gets_a_probe(models: ResolvedModels) -> None:
+-    probed = {base.factory for _, base in probe_pairs(models)}
+-    assert {"SequenceDiagramFactory", "ClassDiagramFactory", "GanttDiagramFactory"} <= probed
+-    assert len(probed) >= 20
++def common_top(models: ResolvedModels, factory: str) -> ResolvedModel:
++    """Top model of ``factory``: its probe, or the family model that includes ``common``."""
++    top = models[top_models(models)[factory]]
++    assert COMMON_ID in top.includes, factory
++    return top
+ 
+ 
++def test_every_command_factory_with_the_common_block_includes_common(
++    models: ResolvedModels,
++) -> None:
++    tops = [models[mid] for mid in top_models(models).values()]
++    covered = {m.factory for m in tops if COMMON_ID in m.includes}
++    assert {SEQUENCE_FACTORY, "ClassDiagramFactory", "GanttDiagramFactory"} <= covered
++    assert len(covered) >= 20
++
++
+ def test_probes_keep_the_upstream_order_of_the_base_model(
+     raw_models: dict[str, Model], models: ResolvedModels
+ ) -> None:
+@@ -235,8 +246,8 @@
+     raw_models: dict[str, Model], models: ResolvedModels
+ ) -> None:
+     keys = set(raw_models[COMMON_ID].overrides)
+-    probe = models[PROBE_PREFIX + "gen-sequence-diagram"]
+-    refined = {e["command"] for e in probe.contexts[MAIN] if e.get("refined_by") == COMMON_ID}
++    top = common_top(models, SEQUENCE_FACTORY)
++    refined = {e["command"] for e in top.contexts[MAIN] if e.get("refined_by") == COMMON_ID}
+     assert refined == keys
+ 
+ 
+```
+
+- sequence / test_common top-model lookup → applied by the orchestrator (see the next commit).
+
+## class: test_style reads every context of the CLASS top model (blocking the full suite)
+
+`model/diagrams/class.yaml` (T18) gives ClassDiagramFactory one context per diagram state
+(`main`, `main_mixing`, `class_group`, `class_group_mixing`, `class_orphan`), each
+splicing `gen-class-diagram#main`, so every style entry appears once per context.
+`tests/families/test_style.py::entries_named` collects entries from all contexts and
+expects one copy. T17's sequence model splices its generated main into several contexts
+the same way (reported by t17-sequence). Proposed change (verified: 107/107 pass on a
+scratch copy with the T18 model in place):
+
+```diff
+@@ def entries_named(command: str) -> list[dict[str, Any]]:
+     model = style_models()[class_top()]
+-    return [e for es in model.contexts.values() for e in es if e["command"] == command]
++    return [e for e in model.contexts[MAIN] if e["command"] == command]
+```
+
+Failing today:
+- test_single_line_css_is_refined_in_place
+- test_structure_entry_pushes_body_closed_by_upstream_end
+- test_join_entries_never_match_a_single_line[CommandStyleMultilinesCSS]
+- test_join_entries_never_match_a_single_line[CommandStyleMultilinesCSSReject]
+
+- class / test_style reads only `main` → applied by the orchestrator with the T18 commit.
+
+## sequence: emitters must emit only the top model of each factory (blocking for every family's emitter parity)
+
+`emit_lark`, `emit_textmate` (`_by_keyword`) and `emit_w3c_with_lossiness` emit every
+`layer: diagram` model. A family model replaces its generated base in dispatch
+(docs/grammar-guide.md, "Diagram dispatch"), but the base stays in the emitted union, so
+none of a family's narrowing or `remove` reaches the grammars: with `sequence` in place the
+Lark grammar has two SEQUENCE bodies and still accepts `end` at top level, `note accross`,
+`autonumber 99999999999`, `A o- B` through the unrefined `gen-sequence-diagram` body. Non-top
+diagram models today: `gen-class-diagram`, `gen-psystem-ditaa`, `gen-sequence-diagram`
+(each family task adds one). Validated by calling `emit_lark` on the resolved dict filtered
+to top models: the sequence negatives above are then rejected by the sequence body (the
+remaining Lark accepts on tests/fixtures/sequence/neg are DESCRIPTION over-acceptance, the
+lenient tails, dropped rejects, and the newline issue below). Proposed diff (same filter in
+the three emitters):
+
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def emit_lark(resolved: ResolvedModels) -> str:
+     names = _Names()
++    tops = set(top_models(resolved).values())
+     diagrams = [
+         _Diagram(m, names)
+         for _, m in sorted(resolved.items())
+-        if m.layer == DIAGRAM_LAYER and m.diagram
++        if m.layer == DIAGRAM_LAYER and m.diagram and m.id in tops
+     ]
+--- a/tools/emit/textmate.py
++++ b/tools/emit/textmate.py
+@@ def _by_keyword(resolved: ResolvedModels) -> dict[str, list[ResolvedModel]]:
+     groups: dict[str, list[ResolvedModel]] = {}
++    tops = set(top_models(resolved).values())
+     for _, model in sorted(resolved.items()):
+-        if model.layer == DIAGRAM_LAYER and model.diagram:
++        if model.layer == DIAGRAM_LAYER and model.diagram and model.id in tops:
+--- a/tools/emit/w3c.py
++++ b/tools/emit/w3c.py
+@@ def emit_w3c_with_lossiness(resolved: ResolvedModels) -> tuple[str, list[Lossy]]:
++    tops = set(top_models(resolved).values())
+     for _, model in sorted(resolved.items()):
+-        if model.layer != DIAGRAM_LAYER or not model.diagram:
++        if model.layer != DIAGRAM_LAYER or not model.diagram or model.id not in tops:
+             continue
+```
+(plus `from tools.model.resolve import top_models` in each). Every diagram model declares a
+`factory` today, so no model is lost. Failing cases: tests/fixtures/sequence/neg/
+note-accross.puml, autonumber-start-overflow.puml, group-stray-else.puml (Lark accepts them
+as SEQUENCE with the current dist/plantuml.lark).
+
+## sequence: Lark terminals match across line ends (`\s`, negated classes)
+
+Lark's dynamic lexer matches each terminal regex against the whole text, so `[\s\_]+` and
+negated classes such as `[^#]+` consume `\n`. Upstream matches one trimmed line. Observed
+with `sequence` in place (grammar filtered to top models, see above):
+* `alt x` / `Alice -> Bob` / `end` / `end`: the pop line `end` takes `[\s\_]+(.*?)` across
+  the newline and eats the second `end` as its comment, so the extra `end` the jar rejects
+  is accepted (neg/group-extra-end.puml).
+* `box "x"` / `participant Alice` / `end box` / `end box`: CommandBoxStart NAME2 `([^#]+)`
+  swallows the next two lines, so one `end box` disappears (neg/box-extra-end.puml).
+Proposed fix in tools/emit/lark.py terminal rendering: rewrite `\s` to `[^\S\r\n]`, and add
+`\r\n` to every negated class (`[^#]` -> `[^#\r\n]`), so no terminal crosses a line end;
+the existing `tail()` lookahead already assumes line-bounded terminals.
+- sequence / emit only top models → done (fix-emit-top, next commit).
+- sequence / Lark terminals across line ends → done (fix-emit-top, next commit).
+
+## activity3: Lark/W3C treat `set` like `push`, so if/else needs two `endif` lines
+
+`activity3` (T21a) uses `set` for the first time in a diagram model. `else` (CommandElse3,
+DecoratorMultine(Else3), ElseLegacy1) does `set: a3_if_else`, and `case` does
+`set: a3_switch_case`. The interpreter replaces the frame. The Lark and W3C emitters nest
+the target block inside the current one (`set` is "treated exactly like `push`",
+tools/emit/lark.py:30-33). The pushed `a3_if_then_block` then still needs its own pop line
+after the `endif` that closed `a3_if_else_block`. So every if/else and every switch with
+a case is rejected by Lark, while the jar accepts it.
+
+Measured on a 100-block plantuml-ts activity3 sample (`--lark sample --sample 100`) with
+the scratch grammar:
+* current emitter: 11 disagreements, 2 timeouts;
+* with the diff below: 3 disagreements, 1 timeout. The baseline grammar without activity3
+  has the same 3 disagreements and 2 timeouts, so activity3 adds none.
+
+Failing cases: tests/fixtures/activity3/pos/if-else.puml, switch-cases.puml;
+plantuml-ts activity/ciceto-21-zanu057, demibe-40-moda439, mukigo-10-dixi626,
+rekuxa-78-lidi292, zaloze-31-jibo311, zucile-04-duga040; class/gekasa-78-jevi903,
+godixi-01-fizo921.
+
+Fix: inside a pushed context, a `set` entry ends the block like `pop` and continues
+with the target's block (`<ctx>_pop_line: ... | else _NL <target>_block`). In `main`
+nothing changes (no frame to replace). The same diff applies to tools/emit/w3c.py
+(`_context`/`_lines` have the same shape there).
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _context(self, ctx: str) -> None:
+-        line = self._lines(rule, entries, pop=False)
+-        pop_line = self._lines(f"{rule}_pop", entries, pop=True)
++        line = self._lines(rule, entries, pop=False, pushed=True)
++        pop_line = self._lines(f"{rule}_pop", entries, pop=True, pushed=True)
+@@
+-    def _lines(self, base: str, entries: list[Entry], pop: bool) -> str:
++    def _lines(self, base: str, entries: list[Entry], pop: bool, pushed: bool = False) -> str:
+-        chosen = [e for e in entries if bool(e.get("pop")) == pop and not skipped(e)]
++        chosen = [e for e in entries if ends_block(e, pushed) == pop and not skipped(e)]
+@@ (module level)
++def ends_block(entry: Entry, pushed: bool) -> bool:
++    """Whether ``entry`` closes the current block: ``pop``, or ``set`` inside a pushed
++    context (the frame is replaced, so the block ends and the target's block follows)."""
++    return bool(entry.get("pop")) or (pushed and bool(entry.get("set")))
+```
+Also update the docstring bullet (lark.py:30-33): "`set` inside a pushed context ends the
+block and continues with the target's block; in `main` it is treated like `push`."
+TextMate still nests regions for `set` (highlighting only). document.yaml's `set`
+entries are in a layer the emitters do not emit.
+
+## activity3: Lark multiline `end` line cannot be indented
+
+`_entry_expr` renders `multiline` + `end` as
+`{expr} _NL (_BODY_LINE? _NL)* {end}`, with no `_WS?` around the end part. An indented
+closing line therefore never matches, for example `  end note` of an indented
+CommandNoteLong3 (`_lines` wraps first lines in `_WS? ... _WS?`, but not end lines).
+This disagreement predates activity3: plantuml-ts activity/kavoro-11-jife299 and
+class/tuvigo-52-redo102 are rejected by Lark and accepted by the jar and the interpreter.
+Verified in a scratch copy: both parse with the diff below.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _entry_expr(self, entry: Entry) -> str:
+-            return f"{expr} _NL (_BODY_LINE? _NL)* {self.tail(entry['end'])}"
++            return f"{expr} _NL (_BODY_LINE? _NL)* _WS? {self.tail(entry['end'])} _WS?"
+```
+The analogous W3C line (`tail = [Node("NL"), Node("(BODY_LINE? NL)*"), self.part(...)]`)
+has the same gap.
+
+## state: Lark requires the pop line of a context entered without `require_pop`
+
+`state` (T20) pushes `state_body` for `state X {` / `frame X {` without `require_pop`,
+because upstream accepts a block that ends inside an open composite (no final check;
+statediagram/command/CommandEndState.java, net/atmp/CucaDiagram.java:161-166). The Lark
+emitter renders every pushed context as `(line? _NL)* <pop line>`, so the closing line
+is mandatory and such blocks are rejected. Failing cases (Lark rejects, jar and
+interpreter accept): plantuml-ts state/suzope-95-suvu383.puml, state/gizati-67-kora187.puml;
+tests/fixtures/state/pos/composite-unclosed.puml. Verified with a monkeypatched emitter
+in a scratch build: both corpus blocks parse.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _context(self, ctx: str) -> None:
+         line = self._lines(rule, entries, pop=False)
+         pop_line = self._lines(f"{rule}_pop", entries, pop=True)
+-        tail = pop_line if pop_line else f"{line}?"
++        if not pop_line:
++            tail = f"{line}?"
++        elif self._pop_required(ctx):
++            tail = pop_line
++        else:  # upstream accepts a block that ends inside this context
++            tail = f"({pop_line} | {line}?)"
+         self.rules.append(f"{rule}: ({line}? _NL)* {tail}")
++
++    def _pop_required(self, ctx: str) -> bool:
++        """Whether an entry pushing ``ctx`` carries ``require_pop``."""
++        return any(
++            e.get("push") == ctx and e.get("require_pop")
++            for es in self.model.contexts.values()
++            for e in es
++        )
+```
+Approximation: Earley may then also close such a context before the block end (a
+superset); the closer neg fixtures of tests/fixtures/state (brace-at-root,
+endstate-at-root, extra-close-after-region, *-closes-root-region) still fail in Lark with
+the patch, because no `main`/`main_concurrent` rule accepts a closer. The W3C emitter has the same shape. The sequence family (unclosed
+`alt`/`box`) benefits too.
+
+## state: Lark multiline `end` line cannot be indented (second failing case)
+
+Same cause and diff as "activity3: Lark multiline `end` line cannot be indented" above.
+Additional failing case: plantuml-ts class/tumaba-64-tosu281.puml (STATE: `    end note`
+closing `note right on link` inside a composite; CommandFactoryNoteOnLink_1's generated
+end `^end[\s ]?note$` has no leading whitespace, while the interpreter compares the
+trimmed line). Before T20 the first note's body ran on to a later unindented `end note`,
+which masked it; with `state_body` as a pushed context it no longer can. Verified: parses
+with that diff (or with the optional-pop diff above).
+
+## state: Lark terminal alternation where a later alternative extends an earlier one
+
+CommandLinkState / CommandLinkStateReverse ENT1/ENT2 (statediagram/command/
+CommandLinkStateCommon.java:74-77) is `([%pLN_.:]+|[%pLN_.:]+\[H\*?\]|\[\*\]|...)`. Lark's
+dynamic lexer takes the first alternative that matches (`Stopwatch`) and
+`dynamic_complete` only retries shorter prefixes, so `Stopwatch[H]` is never produced
+when more text follows (`Timer --> Stopwatch[H] : left`). `prefer_longest`
+(tools/emit/lark.py:149-158) only reorders groups of plain words. Failing case: plantuml-ts
+class/mefici-97-tudu030.puml (also rejected by the pre-T20 grammar) and
+tests/fixtures/state/pos/history.puml (`A[H] --> B`, `B[H*] --> A`). Proposed: extend
+`prefer_longest` so that, in any alternation group, an alternative whose text starts with
+the full text of an earlier alternative is moved before it (`A|A\[H\*?\]` ->
+`A\[H\*?\]|A`); the match set is unchanged under backtracking. Verified by applying exactly
+that swap to the 4 occurrences in a scratch plantuml.lark: the block and both lines parse.
+
+## description: Lark rejects trailing whitespace after a multiline or pushing first line
+
+`tools/emit/lark.py` `_entry_expr` writes bracket, `multiline` + `end` and `push`/`set`
+entries as `<first line> _NL ...` with no `_WS?` before `_NL`, while one-line commands get
+`_WS? <command> _WS?` and the interpreter matches trimmed lines. A first line with
+trailing blanks therefore fails in Lark only: `title ` / `x` / `end title`, `<style> ` /
+`x { y: z }` / `</style>`, and every group opener that the families turned into a push
+(`rectangle r { ` / `[a]` / `}`, `together { `). The jar and the interpreter accept all
+of them.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _entry_expr(self, entry: Entry) -> str:
+         expr = self.tail(entry["parts"])
+         if entry["kind"] == KIND_BRACKET:
+-            return f"{expr} _NL (_BODY_LINE? _NL)* _BRACKET_CLOSE"
++            return f"{expr} _WS? _NL (_BODY_LINE? _NL)* _BRACKET_CLOSE"
+         if entry["kind"] == KIND_MULTILINE and "end" in entry:
+-            return f"{expr} _NL (_BODY_LINE? _NL)* {self.tail(entry['end'])}"
++            return f"{expr} _WS? _NL (_BODY_LINE? _NL)* {self.tail(entry['end'])}"
+         target = entry.get("push") or entry.get("set")
+         if target:
+-            return f"{expr} _NL {self._context_rule(target)}"
++            return f"{expr} _WS? _NL {self._context_rule(target)}"
+```
+Checked on a scratch copy of `tools/` with the T19 model tree: the 9 probes above all
+parse after the change (3 failed before). Failing corpus cases: plantuml-ts
+`class/refabu-21-jesu466.puml` (`title ` + `end title`, hidden before T19 because the
+bare word `title` also parsed as a description element), `sequence/xozabi-42-pixa842.puml`
+(`<style> `), and any group opener with trailing blanks (1 file under plantuml-ts
+`component/` + `usecase/`).
+
+## activity3: test_document pins gen-activity-diagram3 as the top model (blocking the full suite)
+
+`activity3` (T21a) is the hand-written family model for ActivityDiagramFactory3 and
+replaces `gen-activity-diagram3` in dispatch (guide, "Diagram dispatch"). That is the same
+contract `class` and `sequence` follow. tests/layers/test_document.py:161 still asserts
+the generated id, so `test_every_mapped_factory_has_one_top_model` fails once
+model/diagrams/activity3.yaml is present.
+```diff
+--- a/tests/layers/test_document.py
++++ b/tests/layers/test_document.py
+@@ def test_every_mapped_factory_has_one_top_model(
+     assert tops["ActivityDiagramFactory"] == "gen-activity-diagram"
+-    assert tops["ActivityDiagramFactory3"] == "gen-activity-diagram3"
++    assert tops["ActivityDiagramFactory3"] == "activity3"
+     assert tops["PSystemDitaaFactory"] == "embedded-ditaa"
+```
+
+## timing: Lark set/push into a context without pop as the last line
+
+`timing` (T23) switches to `timing_player` with `set` on CommandRobustConcise and
+CommandAtPlayer. The Lark emitter renders a transition as `<parts> _NL <ctx>_block` and a
+context without a pop line as `(line? _NL)* line?`; `<diagram>_body` then needs its own
+`_NL` after the command. When the transition line is the last body line the context is
+empty and two newlines are needed before `@enduml`, so Lark rejects. Failing cases (Lark
+rejects, jar and interpreter accept): pdiff dbhum/b_up/bupubi-65-kigi561.puml,
+dbhum/z_ip/zipuri-87-dofu527.puml, dbhum/z_up/zupuse-88-mira023.puml;
+tests/fixtures/timing/pos/player-switch-as-last-line.puml. Any other pop-less `set`
+target has the same shape (class `class_orphan`/`main_mixing`, description
+`desc_orphan`, `CommandNewpage: {set: main}` as a last line). Verified with a
+monkeypatched emitter in a scratch build: pdiff timing `--lark all` 3 -> 0
+disagreements, vega and plantuml-ts timing slices stay at 0.
+```diff
+--- a/tools/emit/lark.py
++++ b/tools/emit/lark.py
+@@ def _entry_expr(self, entry: Entry) -> str:
+         target = entry.get("push") or entry.get("set")
+         if target:
++            if not self._has_pop(target):  # the context ends with the block
++                return f"{expr} {self._context_rule(target)}"
+             return f"{expr} _NL {self._context_rule(target)}"
+         return expr
+@@ def _context(self, ctx: str) -> None:
+         line = self._lines(rule, entries, pop=False)
+         pop_line = self._lines(f"{rule}_pop", entries, pop=True)
+-        tail = pop_line if pop_line else f"{line}?"
+-        self.rules.append(f"{rule}: ({line}? _NL)* {tail}")
++        if pop_line:
++            self.rules.append(f"{rule}: ({line}? _NL)* {pop_line}")
++        else:  # each line brings its newline; the body's own `_NL` ends the last one
++            self.rules.append(f"{rule}: (_NL {line}?)*")
++
++    def _has_pop(self, ctx: str) -> bool:
++        return any(e.get("pop") and not skipped(e) for e in self.model.contexts[ctx])
+```
+Interaction with the queued `state` entry (optional pop line): the same last-line
+problem applies to `state X {` as the last body line; the analogous form there is
+`<parts> <ctx>` with `<ctx>: (_NL line?)* (_NL pop_line)?`. The queued `description`
+entry adds `_WS?` before that `_NL`; keep it on the `_NL` branch only.
+- activity3 / test_document top-model assertion → orchestrator made it id-agnostic (T21a commit).
+- activity3 / Lark+W3C `set` treated like `push` (if/else needs two `endif`) → resolved (fix-emit-queue): `set` in a pushed context now ends the block and embeds the target's block (tools/emit/flow.py `CLOSED` forms); tests/emit/test_flow.py `if-else*`.
+- activity3 / Lark+W3C multiline `end` line cannot be indented → resolved (fix-emit-queue): `_WS?` before the end part, trailing blanks from the line wrapper; test_flow `indented-multiline-end`.
+- state / Lark requires the pop line of a context entered without `require_pop` → resolved (fix-emit-queue): an unclosed push is a `TAIL` spine (last line only) instead of the optional-pop superset, so the closer negatives stay rejected and `grp {` + foreign line still fails; `require_pop` pushes keep a mandatory pop; test_flow `grp-*`, `strict-*`.
+- state / Lark multiline `end` line cannot be indented (second failing case) → resolved with the activity3 end-line entry above.
+- state / Lark terminal alternation where a later alternative extends an earlier one → resolved (fix-emit-queue): `prefer_longest` now lifts any alternative that starts with the text of an earlier one in every alternation, nested groups and top level included (tools/emit/lark_regex.py `lift_prefixed`); tests/emit/test_lark_regex.py.
+- description / Lark trailing whitespace after a multiline, bracket or pushing first line → resolved (fix-emit-queue): `_WS?` before the first line's `_NL` for bracket, multiline/end and transition commands; test_flow `trailing-space-*`.
+- timing / Lark set/push into a context without pop as the last line → resolved (fix-emit-queue): blocks are newline-led (`(_NL line?)*`), so an empty block needs no extra line; contexts no `pop` can reach are spine-only; test_flow `mode-last-line`, `orphan-*`. Also: a `set` from `main` continues with the target's root form (rest of the block); `pop` entries in `main` stay dropped (family models shadow them with `reject`, which emitters cannot express).
+- toy_class (tests/emit/fixtures/toy) now sets `require_pop: true` on CommandPackage, since unclosed pushes are accepted otherwise.
+
+## gantt: `JAVA_INT_RANGE` lists its shortest alternative first, so Lark cannot reach 10-digit ints mid-line
+
+Owner: `model/diagrams/common.yaml` (common family). Found by T24 (gantt) fixtures.
+Lark's dynamic lexer takes one `regex.match` per terminal and only retries shorter
+prefixes of it (`.agent-notes/fix-lark.md`), so `(?:[1-9][0-9]{0,8}|1[0-9]{9}|...)`
+yields the 9-digit prefix of `2147483647` and the 10-digit alternatives are never
+tried. At the end of a line the emitter's tail lookahead hides it; mid-line it is a
+Lark false reject (`tools/emit/lark_regex.py` `lift_prefixed` only lifts alternatives
+that start with an earlier one's text). The interpreter is unaffected (fullmatch).
+Longest first keeps the language and fixes Lark:
+```diff
+--- a/model/diagrams/common.yaml
++++ b/model/diagrams/common.yaml
+@@ variables:
+   JAVA_INT_RANGE:
+-    regex: "(?:[1-9][0-9]{0,8}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])"
++    regex: "(?:1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7]|[1-9][0-9]{0,8})"
+```
+Failing cases (jar and interpreter accept, Lark rejects; all pass with the diff in a
+scratch build, and `2147483648` stays rejected):
+- `@startgantt` / `page 2147483647x1` / `@endgantt` (common CommandPage)
+- `@startgantt` / `print between D+2147483647 and D+1` / `@endgantt` (gantt-dates
+  GD_COUNT_OK refs JAVA_INT; tests/fixtures/gantt/pos/print-between.puml line 4)
+
+## gantt: final-state check "a separator or group needs a real task" (non-blocking, contract)
+
+Owner: contract (`model/schema.json`, `docs/grammar-guide.md`, `tools/interp/engine.py`,
+`tools/interp/rules.py`). No corpus case today; pinned by strict-xfail fixtures
+`tests/fixtures/gantt/gap/{separator-only,separator-bare-only,group-only}.puml`.
+Upstream: separators and groups enter the task map, `TimeBoundsData.initMinMax` skips
+them (gantt/data/TimeBoundsData.java:131-142), so with no real task `maxDay` stays null,
+`durationInDays` (:155) throws `NullPointerException: temporal`, `checkFinalError` does
+not catch it (gantt/GanttDiagram.java:172-181) and PSystemBuilder.java:275-280 reports
+the crash at the end of the block. It does not matter whether the task comes before or
+after the separator, and a task created inside a group counts, so a context stack
+cannot express it (a pop restores the frame below, which was fixed at push time).
+Proposal: monotone, order-free diagram flags. Entry keys `gives: <flag>` and
+`needs: <flag>`; at the end of the body the attempt fails at the end line when a matched
+entry `needs` a flag no matched entry `gives`. Gantt would set `needs: real_task` on the
+separator/group heads and `gives: real_task` on CommandGanttArrow2 and (T25) task
+sentences. The same shape closes `.agent-notes/T17.md` (participant-less sequence).
+```diff
+--- a/tools/interp/rules.py
++++ b/tools/interp/rules.py
+@@ class Rule:
+     require_pop: bool = False
+     reject: bool = False
++    gives: str = ""
++    needs: str = ""
+@@ def build_rule(entry: Entry) -> Rule:
+         bool(entry.get("require_pop")),
+         bool(entry.get("reject")),
++        entry.get("gives", ""),
++        entry.get("needs", ""),
+     )
+--- a/tools/interp/engine.py
++++ b/tools/interp/engine.py
+@@ class _Resume:
+     index: int
+     stack: tuple[str, ...]
+     next_rule: int
++    matched: tuple[Rule, ...]  # rules matched before the push, restored on backtrack
+@@ def _run(...)
+-            if i >= len(body):
++            if i >= len(body):
+                 pending = next((f for f in frames if f is not None), None)
+-                if pending is None:
+-                    return None
++                if pending is None:
++                    missing = {r.needs for r in matched} - {r.gives for r in matched} - {""}
++                    return len(body) if missing else None  # fails at the end line
+```
+(`_attempt` must map index `len(body)` to `block.end` for the failure line. `matched` is the list of rules applied so far; `_track` snapshots it into `_Resume` and
+a backtrack truncates it. Emitters ignore both keys; the schema adds them as optional
+strings on entries and in `overrides`.)
+
+## mindmap-wbs: match `SingleLineCommand2(doTrim=false)` commands against the untrimmed line (non-blocking, contract + extractor)
+
+Owner: contract (`model/schema.json`, `docs/grammar-guide.md`, `tools/interp/rules.py`)
+and extractor/translator (`tools/extract`, `tools/translate`). Upstream:
+`SingleLineCommand2(boolean doTrim, ...)` matches `lines.getFirst()` untrimmed when
+`doTrim` is false (command/SingleLineCommand2.java:69-81, :93, :102). At 97a5992 that is
+24 commands (`git grep 'super(false, '`): board CommandBoardPlus, 11 chart commands,
+CommandMindMapOrgmode, CommandMindMapPlus, salt CommandAnything, CommandWBSItemNew,
+CommandWBSItemOld and 7 wire commands. The interpreter always matches `Line.trimmed`
+(tools/interp/rules.py:41), so leading and trailing blanks are invisible.
+Failing cases (strict-xfail fixtures, jar rejects, interpreter accepts):
+* `tests/fixtures/mindmap-wbs/gap/mindmap-indented-plus.puml` (`  ++ b`: `^([+-]+)`
+  fails on the untrimmed line, no command matches);
+* `tests/fixtures/mindmap-wbs/gap/wbs-pseudo-trailing-blank.puml` (`**_ `: the trailing
+  blank matches no item command).
+It is also the prerequisite for any indentation-aware tree check in mindmap/WBS
+(getSmartLevel counts leading blanks, mindmap/MindMapDiagram.java:136-157,
+wbs/WBSDiagram.java:187-208): pdiff FAs cupuri-11-piru303, fogari-75-febu345,
+sipuja-30-deto581, input/WBS-monoline-def-0.puml#3 (reports/classify/mindmap-wbs.yaml).
+Proposal: optional entry key `trim: false` (`single` only; also allowed in `overrides`),
+emitted by the translator for commands whose `doTrim` field is false; emitters may
+ignore it (an approximation each emitter docstring would document).
+```diff
+--- a/tools/interp/rules.py
++++ b/tools/interp/rules.py
+@@ class Rule:
+     require_pop: bool = False
+     reject: bool = False
++    untrimmed: bool = False
+@@ def advance(self, body: list[Line], i: int, deadline: Deadline) -> int | None:
+-        if not deadline.fullmatch(self.start, body[i].trimmed):
++        line = body[i].text if self.untrimmed else body[i].trimmed
++        if not deadline.fullmatch(self.start, line):
+             return None
+@@ def build_rule(entry: Entry) -> Rule:
+         bool(entry.get("require_pop")),
+         bool(entry.get("reject")),
++        entry.get("trim") is False,
+     )
+```
+Schema: `"trim": {"const": false}` on entries and override patches, valid only with
+`kind: single`. Extractor: record `SingleLineCommand2.doTrim` (read from the declaring
+class, see .agent-notes/T02.md). Until it lands, mindmap-wbs keeps these as gaps.
+- gantt / JAVA_INT_RANGE longest-first → applied by the orchestrator (T24 commit).
+- gantt / gives-needs final-state flags → adopted as a contract change (delegated).
+
+## activity3: interpreter-only state heads double Lark derivations (non-blocking, contract)
+T21b models the swimlane strategy (ActivityDiagram3.java:80-95, a diagram-wide flag) with
+head copies of the deciding commands that `set` the top level from undecided (`a3_main`)
+to `a3_nolanes_main` (model/diagrams/activity3-structure-lanes.yaml). The interpreter takes
+the copy first; Lark (unordered) keeps both the generated rule (stay) and the copy (exit
+into another root form) at every deciding line, so one root form per deciding line stays
+alive to the end of the block. Measured on plantuml-ts blocks (oracle-preprocessed text,
+same tools/ state, grammar from model/ with vs without the lanes heads): cakeca-72-kara622
+1.5 s -> 3.2 s, judatu-15-xize591 16.4 s -> 19.5 s, lidumi-54-moza355 7.3 s -> 8.0 s.
+Emitters cannot express the strategy anyway (rejects are dropped), so the heads only cost.
+Proposal: optional entry key `emit: false` (also in `insert_*` entries and `overrides`):
+emitters drop the entry like a `reject` (they keep the generated rules, which accept the
+same lines). activity3-structure-lanes would set it on its 11 `a3_lanes_decide` heads and
+`Activity3SplitEndTop`.
+```diff
+--- a/tools/emit/skip.py
++++ b/tools/emit/skip.py
+@@
+ JOIN_KEY = "join"
+ REJECT_KEY = "reject"
++EMIT_KEY = "emit"
+@@ def skipped(entry: Entry) -> bool:
+     """True when emitters must drop the command ``entry``."""
+-    if entry.get(REJECT_KEY):
++    if entry.get(REJECT_KEY) or entry.get(EMIT_KEY) is False:
+         return True
+```
+Schema (model/schema.json): `"emit": {"const": false}` beside `reject` on entries, and
+`"emit": {"oneOf": [{"type": "null"}, {"const": false}]}` in override patches; guide:
+one row in the Keys table ("interpreter-only entry; emitters drop it").
+
+## contract: resolution of gantt final-state flags and mindmap-wbs untrimmed matching (2026-10-15)
+
+* gantt / final-state check "a separator or group needs a real task": implemented as `gives: <flag>` / `needs: <flag>` (schema, guide section "Diagram flags and untrimmed matching", `tools/interp/{rules,engine}.py`). The failure is reported at the block's `@end` line. Family models may now use the keys; the strict-xfail fixtures `tests/fixtures/gantt/gap/{separator-only,separator-bare-only,group-only}.puml` become fixable. Emitters ignore both keys (docstring sentence queued for `fix-emit-queue`: "`gives`/`needs` (diagram flags, final-state checks) are ignored.").
+* mindmap-wbs / `SingleLineCommand2(doTrim=false)`: implemented as `trim: false` (schema, interpreter matches `Line.text`, extractor records `doTrim`, translator emits `trim: false`, `extracted/` and `model/generated/` regenerated). 23 classes / 25 entries carry it. The gap fixtures `mindmap-indented-plus` and `wbs-pseudo-trailing-blank` are now rejected by the interpreter, as by the jar. Emitters ignore the key (docstring sentence queued: "`trim: false` is ignored; the emitted pattern is matched against the trimmed line.").
+* activity3 / interpreter-only state heads: implemented as entry key `emit: false` (schema entries, patches and inserts; guide Keys row; `tools/emit/skip.py` `skipped()`), dropped by all emitters like `reject`. No family model uses it yet; T21b adopts it.
+
+## gantt: second use for the gives/needs flags (addendum to the final-state entry above)
+
+Non-blocking; no change beyond that entry. "No starting date for the project": an absolute
+`starts`/`ends` task phrase fails unless a `project starts` came first
+(gantt/lang/SubjectTask.java:105-107, :172-173, :262-263, :305-306). `project starts` is only
+legal before any task-like entry (GanttDiagram.java:340-346, modeled as a reject in
+gantt-sentences), so an order-free flag is exact: `gives: project_start` on
+NaturalGanttGantt, `needs: project_start` on a task sentence entry whose committed phrase is
+an absolute `starts`/`ends` (split from NaturalGanttTask). Failing cases: pdiff
+dbhum/f_ob/fobeda-14-tori503.puml#0, dbhum/f_ur/furubu-23-mecu777.puml#0 (classified `bug`
+in reports/classify/gantt.yaml) and tests/fixtures/gantt/sentences/gap/no-start-date.puml.
+
+## salt: translate Java `.` as `[^\n\r\x85  ]` (non-blocking, translator)
+
+Java compiles every IRegex pattern without DOTALL/UNIX_LINES (regex/Pattern2.java:114), so
+`.` refuses U+0085, U+2028 and U+2029, and `$` also matches before a final one; commands
+are matched with find() (regex/RegexComposed.java:112-118). The translator copies `.`
+verbatim, and Python's `.` matches those three characters, so every generated `.` slot
+accepts lines the jar rejects. Oracle-verified on salt: `title a<U+2028>b` is rejected by the
+jar (CommandTitle and CommandAnything both fail) and accepted by the interpreter
+(tests/fixtures/salt/gap/title-line-separator.puml, strict xfail). salt.yaml already guards
+its own CommandAnything override (SALT_JAVA_LINE); a lone or trailing U+2028 is accepted
+by both. No corpus block contains these characters, so no parity number changes.
+Proposed diff (tools/translate/macros.py; the class is written with literal characters,
+since `\u` escapes are a load error):
+```diff
++JAVA_DOT = "[^\n\r\x85  ]"  # java.util.regex `.` without DOTALL/UNIX_LINES
++
++def java_dot(pattern: str) -> str:
++    """Rewrite each unescaped `.` outside a bracket class as Java's line-bounded dot."""
++    return "".join(JAVA_DOT if tok == "." else tok for tok in _TOKEN.findall(pattern))
++
+ def portable(pattern: str) -> str:
+     """``expand`` followed by the Java-only syntax rewrites (currently ``\\Q...\\E``)."""
+-    return convert_quotes(expand(pattern))
++    return java_dot(convert_quotes(expand(pattern)))
+```
+Then regenerate `model/generated/`. Emitters already line-bound every terminal, so they are
+unaffected; the TextMate/W3C regex printers must accept the literal characters.
+
+## json: do not glue `{{ ... }}` units in joins of non-command factories (non-blocking, interpreter)
+
+`tools/interp/scan.py` `scan_join` (and `scan_multiline`) step through units built by
+`unit_end`, which glues a `{{` line and everything up to its `}}` into one unit
+(PSystemCommandFactory.java:288-307). That rule belongs to command factories only.
+JsonDiagramFactory/StyleExtractor (jsondiagram/StyleExtractor.java:63-101) read plain
+lines, so a `{{` line inside a `<style>` region of a `@startjson` block makes the
+`JsonStyleError` join (model/diagrams/json.yaml) unable to stop at `</style>`, and the
+interpreter accepts a region the jar rejects. Failing case (strict xfail):
+tests/fixtures/json/gap/style-error-with-embedded-open.puml (jar: IllegalStateException
+COLON, rejected; interpreter: accepted). No corpus block is affected.
+Proposed diff: let a rule skip the gluing when its model's factory is not a
+`PSystemCommandFactory` subclass (the 24 factories whose `extracted/*.json` has the
+`opaque-no-regex-field` unreachable entry), e.g.
+```diff
+-def scan_join(start, max_lines, body, i, deadline):
++def scan_join(start, max_lines, body, i, deadline, glue_units=True):
+     j = i
+     for _ in range(max_lines + 1):
+         if j >= len(body):
+             return None
+-        j = unit_end(body, j)
++        j = unit_end(body, j) if glue_units else j + 1
+```
+with `Rule.advance` passing `glue_units=False` for rules of such models (the resolver
+knows each diagram model's `factory`).
+
+## meta-diagrams: Lark/TextMate emit no `@startsprites` block (non-blocking, emitters)
+
+`tools/emit/lark.py` `start_keyword` maps each diagram type to ONE keyword, and SPRITES is
+in `UML_TYPES`, so the ListSpriteDiagramFactory body only lands in `block_uml`. Upstream
+`DiagramType.findStartTypes` gives SPRITES to both `@startsprites` and `@startuml`
+(src/main/java/net/sourceforge/plantuml/core/DiagramType.java:193-200), and model/
+document.yaml maps `sprites: [ListSpriteDiagramFactory]`. The emitted grammar has no
+`block_sprites`, so Lark rejects every `@startsprites` block (jar and interpreter accept;
+the jar reports HELP, ListSpriteDiagram.java:59-61). TextMate's `_by_keyword`
+(tools/emit/textmate.py:196-200) has the same gap. Failing cases:
+tests/fixtures/meta-diagrams/pos/sprites-listsprites.puml, sprites-listsprite-upper.puml,
+sprites-common-commands.puml (Lark: "No terminal matches '@'"). No corpus block uses
+`@startsprites`. Proposed diff (keyword list per type; same idea in textmate.py):
+```diff
++EXTRA_KEYWORDS = {"SPRITES": ("sprites",)}  # DiagramType.java:193-200
++
++def start_keywords(diagram: str) -> tuple[str, ...]:
++    return (start_keyword(diagram), *EXTRA_KEYWORDS.get(diagram, ()))
+@@ def emit_lark(resolved: ResolvedModels) -> str:
+-        keyword = start_keyword(str(diagram.model.diagram))
+-        groups.setdefault(keyword, []).append(diagram.body)
++        for keyword in start_keywords(str(diagram.model.diagram)):
++            groups.setdefault(keyword, []).append(diagram.body)
+```
+
+## meta-diagrams: Lark `END_<kw>` requires `@end<kw>`; upstream any `@end...` closes a block (non-blocking, emitters)
+
+`tools/emit/lark.py` `_blocks` emits `END_{KW}: /[ \t]*@end{kw}[^\r\n]*/i` per block.
+Upstream closes a block at the first line where `StartUtils.isEndDirective` holds: `@` or
+`\` then `end`, any suffix (src/main/java/net/sourceforge/plantuml/utils/StartUtils.java:
+119-121; model/document.yaml END `[@\\]end.*`). Failing cases (Lark rejects, jar and
+interpreter accept): pdiff dbhum/m_ez/mezupo-66-nemu390.puml#0 and dbhum/m_ov/
+movuda-30-bife663.puml#0 (`@startregex` ... `@enderegex`), classified in
+reports/classify/meta-diagrams.yaml. Proposed diff (one shared end terminal):
+```diff
+-        rules.append(f"block_{keyword}: START_{upper} _NL{body} END_{upper}")
++        rules.append(f"block_{keyword}: START_{upper} _NL{body} END_BLOCK")
+         terminals.append(f"START_{upper}: /[ \\t]*@start{keyword}(?![A-Za-z0-9])[^\\r\\n]*/i")
+-        terminals.append(f"END_{upper}: /[ \\t]*@end{keyword}[^\\r\\n]*/i")
++    terminals.append("END_BLOCK: /[ \\t]*[@\\\\]end[^\\r\\n]*/i")
+```
+(`end` is case-sensitive upstream; keep `/i` only if the document model does.)
+
+## single-line: a preprocessor-truncated `@startuml` with no end line is accepted by embedded-welcome (non-blocking, interpreter/contract)
+
+pdiff dbhum/p_ev/pevoma-08-vido726.puml#0 and plantuml-ts class/pevoma-08-vido726.puml#0
+(classified `bug` in reports/classify/single-line.yaml): the jar's preprocessed source
+(BlockUml.getData, the L2 input) is the single line `@startuml`, with no end line. Every
+factory fails: PSystemWelcomeFactory needs exactly two lines
+(src/main/java/net/sourceforge/plantuml/eggs/PSystemWelcomeFactory.java:52), command
+factories report "Empty description". The interpreter sends the empty body to
+embedded-welcome's `empty` context with `lines = body + [end]` = zero lines
+(tools/interp/engine.py `_attempt`), and zero lines are accepted. No model can refuse
+zero lines, so this needs the engine. It cannot be a blanket rule: a truncated
+`@startditaa` / `@startmath` / `@startlatex` without an end line is accepted by the jar
+(PSystemBasicFactory.createSystem returns the system when the iterator runs out,
+src/main/java/net/sourceforge/plantuml/command/PSystemBasicFactory.java:101), and the
+single-line-ditaa/math/latex `empty` contexts reproduce that today.
+Proposed: an opt-in model key, e.g. `empty_needs_end: true` (diagram layer; schema +
+guide "Diagram dispatch"), set on embedded-welcome:
+```diff
+@@ def _attempt(
+         if _is_empty(block.body):
+-            if EMPTY_CONTEXT not in model.contexts:
++            if EMPTY_CONTEXT not in model.contexts or (
++                model.empty_needs_end and block.start and not block.end
++            ):
+                 return -1, block.start or Line(1, "", "")
+```
+Fallback without a schema change: `or (block.start and not block.end)` alone fixes pevoma,
+keeps tests/interp (360 passed on a scratch copy; a bare body with neither line stays
+accepted), but would turn a truncated D4 block into a false reject.
+
+## single-line: KEYWORD_FAMILY lacks crash, dot, ditaa, math, latex (non-blocking, report)
+
+tools/report/families.py assigns a block both sides reject by the `@start` keyword, and
+`crash`/`dot`/`ditaa`/`math`/`latex` are missing, so those blocks land in `unclassified`.
+vega crash/crash-when-parsing.puml#0 and crash/crash-when-finalizing.puml#0 (the T34
+checkpoint FAs, now rejected by both) are counted there instead of in `single-line`.
+```diff
+@@ KEYWORD_FAMILY: dict[str, str] = {
+     "timing": "timing",
++    "crash": "single-line",
++    "dot": "single-line",
++    "ditaa": "single-line",
++    "math": "single-line",
++    "latex": "single-line",
+ }
+```
+Related, informational: accepted crash blocks are reported by the oracle as BPM because
+CrashDiagram passes DiagramType.BPM to TitledDiagram
+(src/main/java/net/sourceforge/plantuml/crash/CrashDiagram.java:58), so vega
+crash/crash-not-crashing.puml#0 and crash/crash-when-drawing.puml#0 show a CRASH/BPM
+diagram mismatch in the misc-charts slice.
+
+## single-line: Lark collapses `\\"` in regex terminals (non-blocking, emitter)
+
+Lark's grammar loader runs `eval_escaping` on `/.../` literals, which doubles `\\` and then
+replaces `\"` by `"`, so the regex `\\"` (a backslash then a quote) reaches the lexer as
+`\"` (a quote). The DOT header's quoted id `"(?:[^"\\]|\\")*"`
+(directdot/PSystemDotFactory.java:54, model/diagrams/single-line-dot.yaml) therefore never
+matches an escaped quote in Lark: tests/fixtures/single-line/pos/dot-escaped-quote.puml
+(`digraph "a\"b" {`) is accepted by the jar and the interpreter, rejected by Lark. Writing
+the escaped backslash as a class survives the loader (verified with lark: `"a\"b"`
+accepted, `"a\b"` rejected):
+```diff
+# tools/emit/lark_regex.py, before the pattern is wrapped in /.../ (outside classes only)
++ESCAPED_BACKSLASH_QUOTE = re.compile(r'(?<!\\)((?:\\\\)*)\\\\"')
++def protect_backslash_quote(pattern: str) -> str:
++    """`\\"` -> `[\\]"`: Lark's eval_escaping would turn it into `\"`."""
++    return ESCAPED_BACKSLASH_QUOTE.sub(r'\1[\\\\]"', pattern)
+```
+
+## meta-diagrams: TextMate `CommandNope` matches the empty string and blanks every body line (non-blocking, emitters)
+
+CommandNope's parts `[\s\xa0]*` (gen `CommandNope`, every command factory via common) are
+emitted as the TextMate pattern `{"match": "(?i:[\\s ]*)"}`. Oniguruma matches it with
+length 0 at column 0 of every line, an earlier start than (or a tie listed before) any
+real rule, so vscode-textmate takes it and the line gets no scope at all: with the grammar
+emitted from model/ (`python -m tools.emit.build --only textmate`), `class Foo` inside
+`@startuml` and every `@startebnf`/`@startregex` body line tokenize as plain
+`source.plantuml`. Removing only that pattern restores the scopes (e.g. `rule = "a" ;`
+gets entity.name.function / keyword.operator, `(* note *)` comment.block). Upstream
+CommandNope matches blank lines only (command/CommandNope.java:46-58). Proposed diff
+(tools/emit/textmate.py, where `match` patterns are built): skip a `single` entry whose
+compiled parts match the empty string, or anchor it, e.g.
+```diff
++    if compile_part(entry["parts"]).fullmatch(""):
++        regex = f"^(?:{regex})$"   # a blank-line rule must not win at column 0 of a real line
+```
+Failing case: tokenize `@startebnf` / `rule = "a" ;` / `@endebnf`; tests/textmate fixtures do
+not catch it because the fixture model has no CommandNope.
+
+## board-files-git: same `{{` unit gluing in FilesDiagramFactory joins (non-blocking, interpreter)
+
+Same cause and fix as "json: do not glue `{{ ... }}` units in joins of non-command
+factories" above; FilesDiagramFactory reads plain lines too (filesdiagram/
+FilesDiagramFactory.java:54-58, jsondiagram/StyleExtractor.java:63-103). With a `{{`
+line inside a `<style>` block of `@startfiles` and a line after `</style>`, the glued unit
+runs to the end of the body, the `FilesStyleBlock*` joins (model/diagrams/
+board-files-git-files.yaml) cannot stop at `</style>`, and the block is rejected although
+the jar accepts it. Failing case (strict xfail):
+tests/fixtures/board-files-git/gap/files-curly-units.puml (jar: accepted; interpreter:
+rejected). No corpus block is affected. The json diff (`glue_units=False` for rules of
+non-command factories) fixes both.
+
+## single-line: test_description pins embedded-license / embedded-version as the accepting models (blocking the full suite)
+
+model/diagrams/single-line-license.yaml and single-line-version.yaml (T34) include the
+embedded models and replace them in dispatch (guide, "Diagram dispatch"), so
+tests/families/test_description.py::test_bare_words_are_left_to_the_single_line_factories
+[license-embedded-license] and [version-embedded-version] now see the family ids. The
+verdicts are unchanged (accepted).
+```diff
+--- a/tests/families/test_description.py
++++ b/tests/families/test_description.py
+@@ SINGLE_LINE_WORDS = [
+-    ("license", "embedded-license"),
+-    ("version", "embedded-version"),
++    ("license", "single-line-license"),
++    ("version", "single-line-version"),
+```
+- json+board-files-git / no `{{ }}` gluing in non-command joins → done (consolidation A).
+- single-line / truncated @startuml → done via `empty_needs_end` (consolidation A).
+- single-line / KEYWORD_FAMILY gaps → done (consolidation A).
+- salt / Java `.` semantics → done in the interpreter via tools/model/java_regex.py (consolidation A); model text stays Java.
+- meta-diagrams / `@startsprites` block → done (consolidation B): `tools/emit/keywords.py` derives each model's start keywords from the document `start_map` (also gives `@startproject`); all 29 keywords have a block in Lark, W3C and TextMate (tests/emit/test_framing.py).
+- meta-diagrams / any `@end...` closes a block → done (consolidation B): one shared `END_BLOCK` (`[@\\]end...`, case-sensitive like StartUtils.java:119-121) in Lark and W3C, and the TextMate block `end`; pdiff meta-diagrams Lark disagreements 2 -> 0.
+- single-line / Lark `\\"` collapse → done (consolidation B) at the origin: `tools/emit/lark_regex.py:render_literal_body` writes every quote as `\x22`; no model change.
+- meta-diagrams / TextMate `CommandNope` → done (consolidation B): rules whose regex can match the empty string are not emitted (`textmate_regex.can_match_empty`; 94 rule occurrences, 13 distinct regexes on the real model).
+- T32 / `linebound.py` positive classes with `\n`/`\r` → done (consolidation B): escapes, raw characters, hex escapes and ranges are split around the line ends.
+## emitters: Lark has no block for a start word that names no factory (non-blocking, emitter; consolidation B)
+Upstream opens a block for ANY `@start<word>` and answers PSystemUnsupported for words with no factory (`@startjcckit`, `@startchronology`; model/document.yaml header, PSystemBuilder.java:283-284); the interpreter accepts them (`test_unknown_start_keyword_is_unsupported_and_accepted`). Lark/W3C/TextMate emit blocks only for `start_map` keywords, so the 7 pdiff `@startjcckit` files (e.g. dbhum/g_ib/gibapi-78-fote878.puml) are interp/oracle accept, Lark reject. Fix sketch in `tools/emit/lark.py:_blocks`: one `block_other` whose START terminal is `[ \t]*[@\\]start(?!(?:<keywords>)(?![A-Za-z0-9]))[^\r\n]*`, body `(_BODY_LINE? _NL)*`, END `END_BLOCK`. Not done here: it needs the same lookahead in W3C and TextMate and changes the block set that tests enumerate.
+- emitters / Lark Java regex semantics → done (consolidation A follow-up): `tools.emit.lark_regex.lark_pattern(pattern, ci)` runs strip_anchors → `tools.model.java_regex.to_python(ci, end_anchor=LINE_END)` → line_bounded → prefer_longest → greedy. ASCII classes, line-bounded `.`, explicit `[aA]` case folding (no Lark `/i` on regex terminals; ci literals become regex terminals), `$`/`\Z` a line-end lookahead `(?=\r|\n|\Z)`. `cp_text` backslash-escapes ASCII punctuation because Lark's `eval_escaping` decodes `\x5c`/`\x5d`/`\x2d`; `linebound` learned `\UHHHHHHHH`. W3C and TextMate keep the model's Java text (their own engines), documented in their module docstrings.
+- emitters / Lark has no block for a start word that names no factory → done for Lark and W3C (consolidation A follow-up): `block_other` (`tools/emit/keywords.py:other_start_pattern` excludes every `start_map` key as a prefix, like findStartTypes; any body; shared END). W3C states the block and the overlap (no lookahead). TextMate unchanged. pdiff unclassified Lark disagreements 25 -> 18 (the 7 `@startjcckit` files).
+
+## Release 0.1.0 resolution index
+
+One line per `##` entry above, in file order, checked against `git log` and the code on
+2026-10-15 (T35). Every entry is applied or superseded; none is rejected and none is open.
+
+1. style: emitters should skip `join` entries that need a joined line -> applied (063d6ee, `tools/emit/skip.py`).
+2. common: a pushed body left open at the end of the block must reject (`require_pop`) -> applied (063d6ee; schema, interpreter, guide).
+3. common: entry-level `reject` for execute-time errors -> applied (063d6ee).
+4. style: `scan_join` needs an early exit -> applied (494ce06).
+5. orchestrator: resolution of the entries above -> record only; entries 1-4 confirmed against 063d6ee and 494ce06.
+6. sequence: `test_common` assumes every command factory is still probed -> applied (c4d3b1d, `common_top` helper in the common tests).
+7. class: `test_style` reads every context of the CLASS top model -> applied (f6a687e, T18 commit).
+8. sequence: emitters must emit only the top model of each factory -> applied (952def8, `tools/emit/tops.py`).
+9. sequence: Lark terminals match across line ends -> applied (952def8 line-bounded terminals; Java `.`/`$` semantics added in 5f5659e).
+10. activity3: Lark/W3C treat `set` like `push` -> applied (ff32a99, `tools/emit/flow.py` closed forms).
+11. activity3: Lark multiline `end` line cannot be indented -> applied (ff32a99).
+12. state: Lark requires the pop line of a context entered without `require_pop` -> applied (ff32a99, unclosed push is a spine-only tail).
+13. state: Lark multiline `end` line cannot be indented (second case) -> superseded by entry 11 (ff32a99).
+14. state: Lark alternation where a later alternative extends an earlier one -> applied (ff32a99, `prefer_longest` in every alternation).
+15. description: Lark rejects trailing whitespace after a multiline or pushing first line -> applied (ff32a99).
+16. activity3: `test_document` pins `gen-activity-diagram3` as the top model -> applied (7e3b8bb, orchestrator, T21a commit: id-agnostic check).
+17. timing: Lark `set`/`push` into a context without `pop` as the last line -> applied (ff32a99, newline-led blocks).
+18. gantt: `JAVA_INT_RANGE` lists the shortest alternative first -> applied (b7ec47e, orchestrator, T24 commit; `model/diagrams/common.yaml` is longest first).
+19. gantt: final-state check "a separator or group needs a real task" -> applied as the `gives`/`needs` diagram flags (5834289; used in b7ec47e/daeb1e0 gantt models). Additive schema keys, not STOP 3.
+20. mindmap-wbs: match `SingleLineCommand2(doTrim=false)` commands against the untrimmed line -> applied as `trim: false` (5834289: schema, extractor, translator, regenerated `extracted/` and `model/generated/`). Additive.
+21. activity3: interpreter-only state heads double Lark derivations -> applied as `emit: false` (5834289; adopted in 2d87408, 1c6e469, 5e0c187). Additive.
+22. contract: resolution of gantt final-state flags and mindmap-wbs untrimmed matching -> record only; entries 19-21 confirmed against 5834289.
+23. gantt: second use for the `gives`/`needs` flags ("No starting date for the project") -> applied (daeb1e0, `needs: project_start` in `model/diagrams/gantt-sentences.yaml`).
+24. salt: translate Java `.` as a class that excludes line terminals -> applied (3dd680c, `tools/model/java_regex.py`; model text stays Java).
+25. json: no `{{ ... }}` gluing in joins of non-command factories -> applied (3dd680c, `tools/interp/factories.py:NON_COMMAND_FACTORIES`).
+26. meta-diagrams: Lark/TextMate emit no `@startsprites` block -> applied (f9f17d4, `tools/emit/keywords.py` derives blocks from `start_map`; also adds `@startproject`).
+27. meta-diagrams: Lark `END_<kw>` requires `@end<kw>`, upstream any `@end...` closes -> applied (f9f17d4, shared `END_BLOCK`).
+28. single-line: preprocessor-truncated `@startuml` with no end line accepted by embedded-welcome -> applied as the `empty_needs_end` top-level key (3dd680c). Additive.
+29. single-line: `KEYWORD_FAMILY` lacks crash, dot, ditaa, math, latex -> applied (3dd680c, `tools/report/families.py`).
+30. single-line: Lark collapses `\\"` in regex terminals -> applied (f9f17d4, quotes rendered as `\x22`; 5f5659e escapes punctuation in `cp_text`).
+31. meta-diagrams: TextMate `CommandNope` matches the empty string -> applied (f9f17d4, `textmate_regex.can_match_empty`).
+32. board-files-git: same `{{` unit gluing in `FilesDiagramFactory` joins -> applied with entry 25 (3dd680c).
+33. single-line: `test_description` pins embedded-license / embedded-version -> applied (8203389, T34 commit generalized the test to factories).
+34. emitters: Lark has no block for a start word that names no factory -> applied for Lark and W3C (5f5659e, `block_other`). TextMate has no such block; documented in `docs/grammar-guide.md`.
+
+Resolved bullets that follow entry 34's text and have no heading of their own: T32 `linebound.py` positive classes with `\n`/`\r` -> applied (f9f17d4); emitters Lark Java regex semantics -> applied (5f5659e, `tools.emit.lark_regex.lark_pattern`).

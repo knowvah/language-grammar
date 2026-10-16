@@ -1,0 +1,42 @@
+# Classifications for the `meta-diagrams` family (T32: ebnf, regex, def, creole, sprites).
+# Upstream pin 97a5992; `cite` paths are relative to the upstream repository root.
+#
+# Parity (interpreter): vega 0 blocks, plantuml-ts 0 blocks, pdiff 113 blocks FR 0 / FA 0
+# (FA 2 before T32: dbhum/b_ak/bakuza-41-bulo451 `({([^{}]*))` and dbhum/t_aj/
+# tajefa-31-pefi801 `(?:[%s]*\\{([^{}]*)\\})?`, both a `{` read as a quantifier up to the
+# next `}` that fails `^\{[0-9,]+\}$`, RegexExpression.java:244-265; now RegexLineUnparsable).
+# No FR/FA to classify.
+#
+# Lark (grammar built from this model): vega and plantuml-ts have no block of the family.
+# pdiff `--lark all`: 113 blocks, 0 timeouts, 2 disagreements (below), both from the
+# emitted document framing, not from these models. One more pre-existing disagreement was
+# fixed by T32 (dbhum/j_uf/jufupa-29-cuge382: the generated UBrexCommandComment carried
+# `$` inside a lookahead, which in a Lark terminal means end of input, so a lone
+# `(* .. *)` line never parsed), and fixing it exposed dbhum/l_ad/ladifa-97-keme950, which
+# is now refused by narrowing the emitter-only multiline rule start (see
+# meta-diagrams-ebnf.yaml).
+#
+# Diagram type: ListSpriteDiagramFactory is SPRITES but builds a HELP diagram
+# (src/main/java/net/sourceforge/plantuml/klimt/sprite/ListSpriteDiagram.java:59-61); the
+# oracle reports HELP, the interpreter SPRITES. No pdiff/vega/plantuml-ts block uses
+# `@startsprites`; `@startuml` + `listsprites` blocks are HELP in the oracle and therefore
+# in the single-line family's slice.
+cases:
+  # `@startregex` ... `@enderegex`: any `@end...` closes a block upstream.
+  pdiff:dbhum/m_ez/mezupo-66-nemu390.puml#0:
+    class: bug
+    note: "Lark only: the emitted END_REGEX terminal requires `@endregex` (tools/emit/lark.py _blocks), upstream closes the block at any `@end...` line (`@enderegex`); queued"
+    cite: src/main/java/net/sourceforge/plantuml/utils/StartUtils.java:119-121
+  pdiff:dbhum/m_ov/movuda-30-bife663.puml#0:
+    class: bug
+    note: "Lark only: the emitted END_REGEX terminal requires `@endregex` (tools/emit/lark.py _blocks), upstream closes the block at any `@end...` line (`@enderegex`); queued"
+    cite: src/main/java/net/sourceforge/plantuml/utils/StartUtils.java:119-121
+exclusions:
+  CommandRegexfSingleLine: >-
+    modeled by the per-state tail entries RegexLineWellFormed (main, set regex_stacked),
+    RegexLineEmpty and RegexLineUnparsable (main), RegexLineBalanced and
+    RegexLineStackedUnparsable (regex_stacked) and the emitter view RegexLine in
+    model/diagrams/meta-diagrams-regex.yaml, which cite PSystemRegex.addBlocLines
+    (PSystemRegex.java:131-178) and CommandRegexfSingleLine.java:59-80; the generated entry
+    is removed because what a line may hold depends on the operand stack left by the
+    earlier lines (PSystemRegex.java:103), so one entry cannot act the same in both states

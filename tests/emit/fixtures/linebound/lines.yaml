@@ -1,0 +1,55 @@
+schema_version: 1
+id: lines
+layer: diagram
+diagram: CLASS
+contexts:
+  main:
+    - command: CommandGroup
+      provenance: {class: toy.CommandGroup}
+      kind: single
+      parts:
+        seq:
+          - {literal: alt, ci: true}
+          - {regex: "[\\s\\_]+\\w+"}
+      push: group
+    - command: CommandBox
+      provenance: {class: toy.CommandBox}
+      kind: single
+      parts:
+        seq:
+          - {literal: box, ci: true}
+          - {regex: "\\s+([^#]+)"}
+      push: box
+    - command: CommandNote
+      provenance: {class: toy.CommandNote}
+      kind: single
+      parts:
+        seq:
+          - {literal: note, ci: true}
+          - {regex: "\\s+(.+)"}
+  group:
+    - command: CommandMessage
+      provenance: {class: toy.CommandMessage}
+      kind: single
+      parts: {regex: "\\w+ -> \\w+"}
+    - command: CommandGroupEnd
+      provenance: {class: toy.CommandGroupEnd}
+      kind: single
+      pop: true
+      parts:
+        seq:
+          - {literal: end, ci: true}
+          - opt:
+              seq:
+                - {regex: "[\\s\\_]+"}
+                - {regex: "(.*?)"}
+  box:
+    - command: CommandMember
+      provenance: {class: toy.CommandMember}
+      kind: single
+      parts: {regex: "participant \\w+"}
+    - command: CommandBoxEnd
+      provenance: {class: toy.CommandBoxEnd}
+      kind: single
+      pop: true
+      parts: {regex: "end\\s+box"}
