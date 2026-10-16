@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows
 - Lark and TextMate start terminals match a start keyword as a prefix, like
   `DiagramType.check`: `@startumlx` opens a `uml` block instead of being rejected (#7).
 
+### Added
+- TextMate frames a start word that no keyword covers (`@startjcckit`) as an opaque
+  `meta.diagram.plantuml` block, like Lark's `block_other` (#8).
+
 ## [0.1.0] - 2026-10-15
 
 First release of the command model and the grammars generated from it. Upstream pin:

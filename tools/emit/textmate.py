@@ -65,7 +65,13 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from tools.emit.keywords import END_DIRECTIVE, START_DIRECTIVE, group_by_keyword
+from tools.emit.keywords import (
+    END_DIRECTIVE,
+    START_DIRECTIVE,
+    document_start_map,
+    group_by_keyword,
+    uncovered_lookahead,
+)
 from tools.emit.lark import MAIN_CONTEXT
 from tools.emit.skip import skipped
 from tools.emit.textmate_regex import Captures, can_match_empty, flatten, flatten_alternatives
@@ -192,19 +198,25 @@ def _group_rules(models: list[ResolvedModel], repository: dict[str, Rule]) -> li
     return rules
 
 
-def _block(keyword: str) -> Rule:
+def _framed(start: str, patterns: list[Rule]) -> Rule:
     return {
         "name": BLOCK_SCOPE,
-        "begin": f"(?i)^\\s*({START_DIRECTIVE}{keyword})",
+        "begin": f"(?i)^\\s*({start})",
         "beginCaptures": {"1": {"name": START_SCOPE}},
         "end": f"^\\s*({END_DIRECTIVE}[A-Za-z0-9]*)",
         "endCaptures": {"1": {"name": END_SCOPE}},
-        "patterns": [
-            {"include": "#" + COMMENTS},
-            {"include": "#" + PREPROCESSOR},
-            {"include": f"#diagram_{keyword}"},
-        ],
+        "patterns": [{"include": "#" + COMMENTS}, {"include": "#" + PREPROCESSOR}, *patterns],
     }
+
+
+def _block(keyword: str) -> Rule:
+    return _framed(f"{START_DIRECTIVE}{keyword}", [{"include": f"#diagram_{keyword}"}])
+
+
+def _other_block(keywords: Sequence[str]) -> Rule:
+    """A start word no keyword covers: PSystemUnsupported, any body (see keywords.py)."""
+    # At least one character must follow `start` (StartUtils.isStartDirective).
+    return _framed(f"{START_DIRECTIVE}{uncovered_lookahead(keywords)}(?=[^\\r\\n])\\S*", [])
 
 
 def emit_textmate(resolved: ResolvedModels) -> dict[str, Any]:
@@ -218,6 +230,8 @@ def emit_textmate(resolved: ResolvedModels) -> dict[str, Any]:
     for keyword, models in groups.items():
         repository[f"diagram_{keyword}"] = {"patterns": _group_rules(models, repository)}
         blocks.append(_block(keyword))
+    if groups:  # with no keyword the exclusion `(?!(?:))` never matches; emit no block
+        blocks.append(_other_block([*document_start_map(resolved), *groups]))
     return {
         "name": "PlantUML",
         "scopeName": SCOPE_NAME,

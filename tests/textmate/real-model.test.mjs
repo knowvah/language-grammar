@@ -39,3 +39,24 @@ test("a backslash directive opens and closes a block", () => {
   assert.ok(scopesAt(tokens, 1, "startuml").includes("keyword.control.start.plantuml"));
   assert.deepEqual(scopesAt(tokens, 4, "class"), ["source.plantuml"]);
 });
+
+test("an unknown start word opens an opaque block (PSystemUnsupported)", () => {
+  const text = "@startjcckit\nclass A\n' note\n@endjcckit\nclass B\n";
+  const tokens = tokenize(grammar, text);
+  assert.ok(scopesAt(tokens, 1, "@startjcckit").includes("keyword.control.start.plantuml"));
+  assert.deepEqual(scopesAt(tokens, 2, "class"), ["source.plantuml", "meta.diagram.plantuml"]);
+  assert.ok(scopesAt(tokens, 3, "note").some((s) => s.startsWith("comment")));
+  assert.ok(scopesAt(tokens, 4, "@endjcckit").includes("keyword.control.end.plantuml"));
+  assert.deepEqual(scopesAt(tokens, 5, "class"), ["source.plantuml"]);
+});
+
+test("a known keyword with a suffix is not the unknown-word block", () => {
+  // EBNF rules carry scopes (generated class rules do not yet, #9).
+  const tokens = tokenize(grammar, '@startebnffoo\nrule = "a" ;\n@endebnf\n');
+  assert.ok(extraScopes(scopesAt(tokens, 2, "rule")).length > 0, "ebnf body not scoped");
+});
+
+test("a bare @start is not a start directive", () => {
+  const tokens = tokenize(grammar, "@start\nclass A\n");
+  assert.deepEqual(scopesAt(tokens, 2, "class"), ["source.plantuml"]);
+});
