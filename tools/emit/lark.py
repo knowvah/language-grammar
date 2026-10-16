@@ -311,7 +311,8 @@ def _blocks(
         upper = keyword.upper()
         body = f" ({' | '.join(bodies)})" if bodies else ""
         rules.append(f"block_{keyword}: START_{upper} _NL{body} {END_TERMINAL}")
-        start = rf"/[ \t]*{START_DIRECTIVE}{keyword}(?![A-Za-z0-9])[^\r\n]*/i"
+        # A prefix test, like DiagramType.check: `@startumlfoo` is `uml` (see keywords.py).
+        start = rf"/[ \t]*{START_DIRECTIVE}{keyword}[^\r\n]*/i"
         terminals.append(f"START_{upper}: {start}")
     rules.append(f"block_other: START_OTHER _NL (_BODY_LINE? _NL)* {END_TERMINAL}")
     terminals.append(f"START_OTHER: /{other_start_pattern([*start_map, *groups])}/i")

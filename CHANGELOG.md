@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Lark and TextMate start terminals match a start keyword as a prefix, like
+  `DiagramType.check`: `@startumlx` opens a `uml` block instead of being rejected (#7).
+
 ## [0.1.0] - 2026-10-15
 
 First release of the command model and the grammars generated from it. Upstream pin:

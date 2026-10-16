@@ -508,10 +508,6 @@ Known limits, all intended and tested:
   the interpreter and Lark translate it with `tools.model.java_regex` (see "Regex
   semantics"). W3C records what it cannot express as `*_lossy` productions
   (large repeats, lookaround, Unicode properties, word boundaries).
-* **Lark start keywords have no word boundary.** `START_*` terminals are plain prefixes, so
-  `@startumlx` is rejected by Lark although upstream accepts it (`findStartTypes` takes a
-  key that is a prefix of the keyword). Words that match no `start_map` key are framed by
-  `block_other`.
 * **Emitters drop `reject`, `emit: false`, `gives`/`needs` and `trim`.** They are wider than
   the interpreter for bodies that rely on those keys; this is the main source of Lark-only
   disagreements.

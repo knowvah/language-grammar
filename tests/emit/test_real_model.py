@@ -20,6 +20,7 @@ SPRITE_FIXTURES = [
     "meta-diagrams/pos/sprites-common-commands.puml",
 ]
 DOT_ESCAPED_QUOTE = "single-line/pos/dot-escaped-quote.puml"
+NAME_SUFFIX = "document/forms/name-suffix.puml"  # `@startumlfoo`, jar-accepted as CLASS
 START = "@start"
 
 
@@ -55,3 +56,8 @@ def test_a_regex_block_closes_at_any_end_directive(parser: Lark, end: str) -> No
 
 def test_a_start_keyword_without_end_directive_stays_rejected(parser: Lark) -> None:
     assert parse_text(parser, "@startregex\nab\n")["status"] == REJECT
+
+
+def test_a_start_keyword_followed_by_letters_is_that_keyword(parser: Lark) -> None:
+    assert parse_text(parser, block_of(NAME_SUFFIX))["status"] == ACCEPT
+    assert parse_text(parser, "@startumlx\nclass Foo\n@enduml\n")["status"] == ACCEPT

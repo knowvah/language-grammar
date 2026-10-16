@@ -103,7 +103,7 @@ def test_every_real_start_keyword_has_a_block_in_all_three_emitters(real_resolve
         assert f"START_{upper} ::=" in w3c_text, keyword
         assert f"START_{upper}: /" in lark_text, keyword
         assert f"diagram_{keyword}" in grammar["repository"], keyword
-        assert any(b.endswith(f"{keyword})(?![A-Za-z0-9])") for b in blocks), keyword
+        assert any(b.endswith(f"{keyword})") for b in blocks), keyword
     assert len(blocks) == len(expected)
 
 
@@ -111,10 +111,27 @@ def test_every_real_start_keyword_has_a_block_in_all_three_emitters(real_resolve
 
 
 @pytest.mark.parametrize(
-    "start", ["@startuml", "@startsprites", "@startsprites name", r"\startuml"]
+    "start",
+    [
+        "@startuml",
+        "@startsprites",
+        "@startsprites name",
+        r"\startuml",
+        "@startumlx",
+        "@startumlfoo",
+        "@startspritesfoo bar",
+        "@startUMLx",
+    ],
 )
 def test_lark_sprites_block_and_uml_block_accept_the_sprite_model(toy_parser, start: str) -> None:
     assert status(toy_parser, f"{start}\n{LIST_LINE}\n@enduml\n") == ACCEPT
+
+
+def test_lark_keyword_with_a_suffix_is_that_keyword(toy_parser) -> None:
+    # DiagramType.check is a prefix test (core/DiagramType.java:220-232): `@startumlfoo` is
+    # `uml` (jar-verified: tests/fixtures/document/forms/name-suffix.puml), not unsupported.
+    assert status(toy_parser, "@startumlx\nanything\n@enduml\n") == REJECT
+    assert status(toy_parser, "@startprojectfoo\ntask abc\n@end\n") == ACCEPT
 
 
 def test_lark_project_block_uses_the_gantt_model(toy_parser) -> None:
@@ -153,7 +170,7 @@ def test_textmate_block_ends_at_any_end_directive(toy_resolved) -> None:
     grammar = textmate.emit_textmate(toy_resolved)
     blocks = [p for p in grammar["patterns"] if "begin" in p]
     assert {b["end"] for b in blocks} == {r"^\s*([@\\]end[A-Za-z0-9]*)"}
-    assert [b["begin"] for b in blocks][3] == r"(?i)^\s*([@\\]startsprites)(?![A-Za-z0-9])"
+    assert [b["begin"] for b in blocks][3] == r"(?i)^\s*([@\\]startsprites)"
     assert "diagram_project" in grammar["repository"]
 
 
@@ -188,3 +205,16 @@ def test_w3c_states_the_unsupported_block_and_its_overlap(toy_resolved) -> None:
     assert 'START_OTHER ::= [#x20#x9]* ("@" | "\\") "start" [^#xD#xA]+' in text
     block = next(line for line in text.splitlines() if line.startswith("block ::= "))
     assert block.endswith(" | block_other")
+
+
+def test_real_start_keywords_are_prefix_free(real_resolved) -> None:
+    # Each START_<KW> is `keyword` + anything, so a key that prefixed another would give one
+    # start line two blocks; upstream's getTypes has no such pair either.
+    keys = sorted(keywords.document_start_map(real_resolved))
+    clashes = [(a, b) for a in keys for b in keys if a != b and b.startswith(a)]
+    assert clashes == []
+
+
+def test_other_start_pattern_lists_each_keyword_once() -> None:
+    pattern = keywords.other_start_pattern(["uml", "salt", "uml", "salt"])
+    assert pattern == r"[ \t]*[@\\]start(?!(?:salt|uml))[^\r\n]+"

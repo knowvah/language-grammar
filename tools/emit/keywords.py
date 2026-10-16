@@ -24,12 +24,15 @@ never hands a grammar such text.
 
 Start words no keyword covers
 -----------------------------
-``DiagramType.findStartTypes`` matches a start word against the ``start_map`` keys by exact
-key or key prefix; a word no key covers (``@startjcckit``, ``@startchronology``) opens a block
-all the same and upstream answers ``PSystemUnsupported`` (PSystemBuilder.java:283-284,
-PSystemErrorUtils.java:58-59), which is accepted. Lark gets one more block, ``block_other``,
-whose start terminal excludes every keyword prefix (``other_start_pattern``) and whose body is
-any lines. W3C cannot express the exclusion (no lookahead) and says so in its comments.
+``DiagramType.findStartTypes`` matches a start word against the ``start_map`` keys by key prefix
+(``DiagramType.check``, core/DiagramType.java:220-232): ``@startumlfoo`` is ``uml``, so each
+``START_<KW>`` terminal is the keyword followed by anything. No key is a prefix of another, so
+at most one keyword terminal matches a start line. A word no key covers (``@startjcckit``,
+``@startchronology``) opens a block all the same and upstream answers ``PSystemUnsupported``
+(PSystemBuilder.java:283-284, PSystemErrorUtils.java:58-59), which is accepted. Lark gets one
+more block, ``block_other``, whose start terminal excludes every keyword prefix
+(``other_start_pattern``) and whose body is any lines. W3C cannot express the exclusion (no
+lookahead) and says so in its comments.
 """
 
 from __future__ import annotations
@@ -66,7 +69,7 @@ def other_start_pattern(keywords: Iterable[str]) -> str:
 
     At least one character must follow ``start`` (``StartUtils.isStartDirective``).
     """
-    covered = "|".join(sorted(keywords, key=len, reverse=True))
+    covered = "|".join(sorted(set(keywords), key=lambda k: (-len(k), k)))
     return rf"[ \t]*{START_DIRECTIVE}(?!(?:{covered}))[^\r\n]+"
 
 
