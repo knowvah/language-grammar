@@ -104,7 +104,7 @@ def test_every_real_start_keyword_has_a_block_in_all_three_emitters(real_resolve
         assert f"START_{upper}: /" in lark_text, keyword
         assert f"diagram_{keyword}" in grammar["repository"], keyword
         assert any(b.endswith(f"{keyword})") for b in blocks), keyword
-    assert len(blocks) == len(expected)
+    assert len(blocks) == len(expected) + 1  # one block per keyword, then the unknown-word block
 
 
 # --- Lark framing ---------------------------------------------------------------------
@@ -175,6 +175,13 @@ def test_textmate_block_ends_at_any_end_directive(toy_resolved) -> None:
 
 
 # --- start words no keyword covers (PSystemUnsupported) --------------------------------------
+
+
+def test_uncovered_lookahead_is_shared_by_lark_and_textmate() -> None:
+    assert keywords.uncovered_lookahead(["uml", "mindmap"]) == "(?!(?:mindmap|uml))"
+    assert keywords.uncovered_lookahead(["uml", "mindmap"]) in keywords.other_start_pattern(
+        ["uml", "mindmap"]
+    )
 
 
 def test_other_start_pattern_excludes_every_keyword_prefix_longest_first() -> None:

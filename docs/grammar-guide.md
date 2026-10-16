@@ -513,8 +513,8 @@ Known limits, all intended and tested:
   disagreements.
 * **TextMate scope coverage is limited.** Generated class and sequence rules carry no
   scopes (the generated models give regexes no `scope`), so those bodies are matched but
-  not highlighted. TextMate also has no "unknown start word" block: `@startjcckit` and
-  similar words are not framed.
+  not highlighted. A start word no keyword covers (`@startjcckit`) is framed as an opaque
+  block in which only comments and preprocessor lines are scoped.
 * **Conditional factory `PSystemPathFactory`.** `eggs/PSystemPathFactory.java` (a
   `PSystemSingleLineFactory` accepting `path <alnum>`, `:49`) is added to the factory list
   only when the security profile is `INSECURE` (`PSystemBuilder.java:178-179`). The profile
