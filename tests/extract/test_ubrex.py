@@ -15,7 +15,6 @@ from tools.extract import build, run
 
 pytestmark = pytest.mark.corpus
 
-PIN_FILE = run.PIN_FILE
 GANTT_DIR = "src/main/java/net/sourceforge/plantuml/gantt"
 FACTORY_PATH = f"{GANTT_DIR}/GanttDiagramFactory.java"
 VERBS_PATH = f"{GANTT_DIR}/lang/Verbs.java"

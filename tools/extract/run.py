@@ -6,27 +6,21 @@ Usage: python -m tools.extract.run [--out DIR]   (default DIR: extracted/)
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from tools.config import ConfigError, require
+from tools.config import ConfigError, load_pin, require
 from tools.extract import build
 
 REPO_ROOT = build.REPO_ROOT
-PIN_FILE = "upstream-pin.json"
 DEFAULT_OUT = "extracted"
 MAIN_CLASS = "Extract"
 EXIT_CONFIG = 2
 
 Runner = Callable[[list[str]], int]
-
-
-def load_pin(root: Path) -> dict[str, str]:
-    return json.loads((root / PIN_FILE).read_text(encoding="utf-8"))
 
 
 def java_command(jar: Path, classes: Path, out: Path, pin: dict[str, str]) -> list[str]:

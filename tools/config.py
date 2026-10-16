@@ -1,17 +1,29 @@
 """Locations of the pinned jar, upstream source and corpora.
 
 `resolve` is pure (env + home in, Config out); `require` reads the process
-environment and checks that the path exists.
+environment and checks that the path exists. The upstream pin has one source of
+truth, `upstream-pin.json`; `PIN_SHA` is read from it at import.
 """
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-PIN_SHA = "97a5992201a7b1bc5d4063a81da609fe7387fede"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PIN_FILE = "upstream-pin.json"
+
+
+def load_pin(root: Path) -> dict[str, str]:
+    """The ``upstream-pin.json`` under ``root`` (``sha``, ``version``, ``repo``)."""
+    pin: dict[str, str] = json.loads((root / PIN_FILE).read_text(encoding="utf-8"))
+    return pin
+
+
+PIN_SHA = load_pin(REPO_ROOT)["sha"]
 
 ENV_VARS: dict[str, str] = {
     "jar": "PLANTUML_JAR",
