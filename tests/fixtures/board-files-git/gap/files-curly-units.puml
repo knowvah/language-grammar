@@ -1,0 +1,11 @@
+' board-files-git: FilesStyleBlock
+' gap: the interpreter groups `{{` ... `}}` lines into one unit inside joins (PSystemCommandFactory.java:288-307); FilesDiagram reads plain lines
+' jar: accept
+@startfiles
+<style>
+{{
+FontColor
+,*/
+</style>
+/a
+@endfiles
